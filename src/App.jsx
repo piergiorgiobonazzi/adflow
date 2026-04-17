@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import './App.css'
 
 const COLORS = ['#6c63ff','#22c55e','#f59e0b','#ef4444','#3b82f6','#ec4899','#14b8a6']
+const API = import.meta.env.VITE_API_URL || ''
 
 function getClients() { return JSON.parse(localStorage.getItem('adflow_clients') || '[]') }
 function saveClients(c) { localStorage.setItem('adflow_clients', JSON.stringify(c)) }
@@ -70,7 +71,7 @@ export default function App() {
       return
     }
     notify('Creazione campagna su Meta...')
-    fetch('/api/campaigns', {
+    fetch(`${API}/api/campaigns`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...metaHeaders() },
       body: JSON.stringify({
@@ -110,7 +111,7 @@ export default function App() {
   function testConnection() {
     if (!settForm.token) { notify('Inserisci prima il token'); return }
     setConnStatus('Verifica in corso...')
-    fetch('/api/me', { headers: { 'x-meta-token': settForm.token } })
+    fetch(`${API}/api/me`, { headers: { 'x-meta-token': settForm.token } })
       .then(r => r.json())
       .then(d => { if (d.id) { setConnStatus('✅ Connesso: ' + (d.name || d.id)); notify('Connessione riuscita!') } else { setConnStatus('❌ ' + (d.error || 'Token non valido')) } })
       .catch(() => setConnStatus('⚠ Backend non raggiungibile'))
@@ -120,7 +121,7 @@ export default function App() {
     if (!settings.token) { notify('⚠ Configura prima il token nelle Impostazioni'); return }
     notify('Sincronizzazione campagne in corso...')
     const headers = metaHeaders()
-    fetch('/api/adaccounts', { headers })
+    fetch(`${API}/api/adaccounts`, { headers })
       .then(r => r.json())
       .then(async accountsData => {
         if (accountsData.error) { notify('❌ ' + accountsData.error); return }
@@ -128,7 +129,7 @@ export default function App() {
         if (!accounts.length) { notify('Nessun ad account trovato'); return }
         const allCampaigns = []
         await Promise.all(accounts.map(async acc => {
-          const res = await fetch(`/api/campaigns?account_id=${acc.id}`, { headers })
+          const res = await fetch(`${API}/api/campaigns?account_id=${acc.id}`, { headers })
           const json = await res.json()
           if (json.data) {
             json.data.forEach(c => allCampaigns.push({
