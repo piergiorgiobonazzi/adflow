@@ -64,26 +64,90 @@ export default function App() {
     if (!campForm.nome) { notify('Inserisci il nome della campagna'); return }
     if (!campForm.clienteId) { notify('Seleziona un cliente'); return }
     if (!settings.token) { notify('⚠ Token non configurato. Vai in Impostazioni.'); return }
-    notify('Connessione all\'API Meta...')
-    setTimeout(() => {
-      const client = clients.find(c => c.id === campForm.clienteId)
-      const updated = [...campagne, { ...campForm, id: Date.now().toString(), clienteName: client?.name || '—', status:'ACTIVE', createdAt: new Date().toISOString() }]
-      saveCampagne(updated); setCampagne(updated)
-      notify('✅ Campagna lanciata!'); setTimeout(() => setPage('campagne'), 1500)
-    }, 1500)
+    const client = clients.find(c => c.id === campForm.clienteId)
+    if (!client?.adAccount) {
+      notify('⚠ Il cliente non ha un Ad Account ID configurato')
+      return
+    }
+    notify('Creazione campagna su Meta...')
+    fetch('/api/campaigns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...metaHeaders() },
+      body: JSON.stringify({
+        account_id: client.adAccount,
+        name: campForm.nome,
+        objective: campForm.obiettivo,
+        daily_budget: campForm.budgetType === 'DAILY' ? Number(campForm.budget) : undefined,
+        lifetime_budget: campForm.budgetType === 'LIFETIME' ? Number(campForm.budget) : undefined,
+        start_time: campForm.startDate || undefined,
+        stop_time: campForm.endDate || undefined,
+        status: 'PAUSED',
+      }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) { notify('❌ ' + data.error); return }
+        const updated = [...campagne, {
+          ...campForm, id: data.id || Date.now().toString(),
+          clienteName: client.name, status: 'PAUSED',
+          createdAt: new Date().toISOString(), fromMeta: true,
+        }]
+        saveCampagne(updated); setCampagne(updated)
+        notify('✅ Campagna creata su Meta!'); setTimeout(() => setPage('campagne'), 1500)
+      })
+      .catch(() => notify('❌ Errore durante la creazione'))
   }
 
   function saveSettingsForm() {
     saveSettings(settForm); setSettings(settForm); notify('Impostazioni salvate!')
   }
 
+  function metaHeaders() {
+    const token = settForm.token || settings.token
+    return token ? { 'x-meta-token': token } : {}
+  }
+
   function testConnection() {
     if (!settForm.token) { notify('Inserisci prima il token'); return }
     setConnStatus('Verifica in corso...')
-    fetch(`https://graph.facebook.com/v18.0/me?access_token=${settForm.token}`)
+    fetch('/api/me', { headers: { 'x-meta-token': settForm.token } })
       .then(r => r.json())
-      .then(d => { if (d.id) { setConnStatus('✅ Connesso: ' + (d.name || d.id)); notify('Connessione riuscita!') } else { setConnStatus('❌ Token non valido') } })
-      .catch(() => setConnStatus('⚠ Errore di rete'))
+      .then(d => { if (d.id) { setConnStatus('✅ Connesso: ' + (d.name || d.id)); notify('Connessione riuscita!') } else { setConnStatus('❌ ' + (d.error || 'Token non valido')) } })
+      .catch(() => setConnStatus('⚠ Backend non raggiungibile'))
+  }
+
+  function syncCampaigns() {
+    if (!settings.token) { notify('⚠ Configura prima il token nelle Impostazioni'); return }
+    notify('Sincronizzazione campagne in corso...')
+    const headers = metaHeaders()
+    fetch('/api/adaccounts', { headers })
+      .then(r => r.json())
+      .then(async accountsData => {
+        if (accountsData.error) { notify('❌ ' + accountsData.error); return }
+        const accounts = accountsData.data || []
+        if (!accounts.length) { notify('Nessun ad account trovato'); return }
+        const allCampaigns = []
+        await Promise.all(accounts.map(async acc => {
+          const res = await fetch(`/api/campaigns?account_id=${acc.id}`, { headers })
+          const json = await res.json()
+          if (json.data) {
+            json.data.forEach(c => allCampaigns.push({
+              id: c.id, nome: c.name, clienteId: '', clienteName: acc.name,
+              obiettivo: c.objective, status: c.status,
+              budget: c.daily_budget ? Math.round(c.daily_budget / 100) : '—',
+              budgetType: c.daily_budget ? 'DAILY' : 'LIFETIME',
+              startDate: c.start_time?.split('T')[0] || '',
+              endDate: c.stop_time?.split('T')[0] || '',
+              formato: 'image', createdAt: c.created_time, fromMeta: true,
+            }))
+          }
+        }))
+        const local = getCampagne().filter(c => !c.fromMeta)
+        const merged = [...local, ...allCampaigns]
+        saveCampagne(merged); setCampagne(merged)
+        notify(`✅ ${allCampaigns.length} campagne sincronizzate da Meta`)
+      })
+      .catch(() => notify('❌ Errore durante la sincronizzazione'))
   }
 
   function exportData() {
@@ -216,7 +280,10 @@ export default function App() {
             <div style={{background:'#111118',border:'1px solid #2a2a38',borderRadius:12,overflow:'hidden'}}>
               <div style={{padding:'16px 20px',borderBottom:'1px solid #2a2a38',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                 <div style={{fontSize:14,fontWeight:600}}>Tutte le Campagne <span style={{color:'#5a5a78',fontWeight:400,fontSize:12}}>({campagne.length})</span></div>
-                <button onClick={() => { setPage('crea'); setStep(1) }} style={{padding:'6px 12px',borderRadius:8,background:'#6c63ff',color:'white',border:'none',fontSize:12,cursor:'pointer',fontFamily:'DM Sans,sans-serif'}}>+ Nuova</button>
+                <div style={{display:'flex',gap:8}}>
+                  <button onClick={syncCampaigns} style={{padding:'6px 12px',borderRadius:8,background:'#1a1a24',color:'#9090b0',border:'1px solid #2a2a38',fontSize:12,cursor:'pointer',fontFamily:'DM Sans,sans-serif'}}>⟳ Sync Meta</button>
+                  <button onClick={() => { setPage('crea'); setStep(1) }} style={{padding:'6px 12px',borderRadius:8,background:'#6c63ff',color:'white',border:'none',fontSize:12,cursor:'pointer',fontFamily:'DM Sans,sans-serif'}}>+ Nuova</button>
+                </div>
               </div>
               {campagne.length === 0 ? (
                 <div style={{textAlign:'center',padding:60,color:'#5a5a78'}}><div style={{fontSize:40,marginBottom:12}}>🚀</div><div style={{fontSize:13}}>Nessuna campagna ancora.</div></div>
