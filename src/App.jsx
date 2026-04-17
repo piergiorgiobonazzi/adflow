@@ -497,22 +497,55 @@ export default function App() {
               </div>
               <div style={{background:'#111118',border:'1px solid #2a2a38',borderRadius:12,padding:20,marginBottom:16}}>
                 <div style={{fontSize:14,fontWeight:600,marginBottom:4}}>Connessione Meta API</div>
-                <div style={{fontSize:12,color:'#5a5a78',marginBottom:14}}>Ogni utente inserisce le proprie credenziali — i dati restano nel tuo browser</div>
-                <div style={{marginBottom:12}}>
+                <div style={{fontSize:12,color:'#5a5a78',marginBottom:16}}>Ogni utente inserisce le proprie credenziali — i dati restano nel tuo browser</div>
+
+                {/* GUIDA SETUP */}
+                <div style={{background:'#0d0d14',border:'1px solid #2a2a48',borderRadius:10,padding:16,marginBottom:20}}>
+                  <div style={{fontSize:12,fontWeight:600,color:'#8b85ff',marginBottom:14,letterSpacing:.3}}>Come configurare AdFlow — 3 passi</div>
+                  <div style={{display:'flex',flexDirection:'column',gap:12}}>
+                    <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
+                      <div style={{width:24,height:24,borderRadius:'50%',background:'rgba(108,99,255,.25)',color:'#8b85ff',fontSize:11,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}}>1</div>
+                      <div>
+                        <div style={{fontSize:12,fontWeight:600,color:'#e0e0f0',marginBottom:3}}>Crea l'app Meta</div>
+                        <div style={{fontSize:11,color:'#5a5a78',lineHeight:1.6}}>Vai su <a href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer" style={{color:'#8b85ff',textDecoration:'none'}}>developers.facebook.com/apps</a> → clicca <strong style={{color:'#9090b0'}}>Crea app</strong> → scegli tipo <strong style={{color:'#9090b0'}}>Business</strong> → una volta creata, copia l'<strong style={{color:'#9090b0'}}>App ID</strong> che appare in cima alla dashboard.</div>
+                      </div>
+                    </div>
+                    <div style={{borderTop:'1px solid #1e1e2e'}}></div>
+                    <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
+                      <div style={{width:24,height:24,borderRadius:'50%',background:'rgba(108,99,255,.25)',color:'#8b85ff',fontSize:11,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}}>2</div>
+                      <div>
+                        <div style={{fontSize:12,fontWeight:600,color:'#e0e0f0',marginBottom:3}}>Crea l'utente di sistema e genera il token</div>
+                        <div style={{fontSize:11,color:'#5a5a78',lineHeight:1.6}}>Vai su <a href="https://business.facebook.com/settings" target="_blank" rel="noreferrer" style={{color:'#8b85ff',textDecoration:'none'}}>business.facebook.com/settings</a> → <strong style={{color:'#9090b0'}}>Utenti → Utenti di sistema</strong> → clicca <strong style={{color:'#9090b0'}}>Aggiungi</strong> e scegli ruolo <strong style={{color:'#9090b0'}}>Admin</strong>. Poi assegna gli ad account dei tuoi clienti, clicca <strong style={{color:'#9090b0'}}>Genera token</strong>, spunta i permessi <strong style={{color:'#9090b0'}}>ads_management</strong> e <strong style={{color:'#9090b0'}}>ads_read</strong>, e copia il token generato.</div>
+                      </div>
+                    </div>
+                    <div style={{borderTop:'1px solid #1e1e2e'}}></div>
+                    <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
+                      <div style={{width:24,height:24,borderRadius:'50%',background:'rgba(108,99,255,.25)',color:'#8b85ff',fontSize:11,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}}>3</div>
+                      <div>
+                        <div style={{fontSize:12,fontWeight:600,color:'#e0e0f0',marginBottom:3}}>Trova il Business Manager ID</div>
+                        <div style={{fontSize:11,color:'#5a5a78',lineHeight:1.6}}>Sempre su <a href="https://business.facebook.com/settings" target="_blank" rel="noreferrer" style={{color:'#8b85ff',textDecoration:'none'}}>business.facebook.com/settings</a> → <strong style={{color:'#9090b0'}}>Informazioni business</strong>. Il numero ID è in cima alla pagina, sotto il nome della tua azienda.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CAMPI */}
+                <div style={{marginBottom:14}}>
+                  <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>App ID Meta</label>
+                  <input type="text" value={settForm.appId} onChange={e=>setSettForm({...settForm,appId:e.target.value})} placeholder="Es. 1234567890123456" style={{width:'100%',background:'#1a1a24',border:'1px solid #2a2a38',borderRadius:8,padding:'9px 12px',fontSize:13,color:'#f0f0f8',fontFamily:'monospace'}} />
+                  <div style={{fontSize:11,color:'#5a5a78',marginTop:5,lineHeight:1.5}}>L'ID della tua app Meta (vedi step 1). Lo trovi nella dashboard di <a href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer" style={{color:'#6c63ff',textDecoration:'none'}}>developers.facebook.com</a> non appena selezioni la tua app.</div>
+                </div>
+                <div style={{marginBottom:14}}>
                   <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>System User Token</label>
-                  <input type={!tokenVisible ? 'password' : 'text'} value={settForm.token} onChange={e=>setSettForm({...settForm,token:e.target.value})} style={{width:'100%',background:'#1a1a24',border:'1px solid #2a2a38',borderRadius:8,padding:'9px 12px',fontSize:13,color:'#f0f0f8',fontFamily:'monospace'}} />
-                  <div style={{fontSize:11,color:'#5a5a78',marginTop:5,lineHeight:1.5}}>È il token che autorizza AdFlow ad accedere alle tue campagne. Trovalo in <strong style={{color:'#9090b0'}}>Business Manager → Impostazioni → Utenti di sistema</strong>, crea un utente di sistema con ruolo Admin e genera il token con i permessi <em>ads_management</em>.</div>
+                  <input type={!tokenVisible ? 'password' : 'text'} value={settForm.token} onChange={e=>setSettForm({...settForm,token:e.target.value})} placeholder="Token generato nello step 2…" style={{width:'100%',background:'#1a1a24',border:'1px solid #2a2a38',borderRadius:8,padding:'9px 12px',fontSize:13,color:'#f0f0f8',fontFamily:'monospace'}} />
+                  <div style={{fontSize:11,color:'#5a5a78',marginTop:5,lineHeight:1.5}}>Il token che autorizza AdFlow a gestire le campagne. Generato nello step 2 — assicurati di copiarlo subito, non viene mostrato di nuovo.</div>
                 </div>
-                <div style={{marginBottom:12}}>
+                <div style={{marginBottom:16}}>
                   <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Business Manager ID</label>
-                  <input type="text" value={settForm.bmId} onChange={e=>setSettForm({...settForm,bmId:e.target.value})} style={{width:'100%',background:'#1a1a24',border:'1px solid #2a2a38',borderRadius:8,padding:'9px 12px',fontSize:13,color:'#f0f0f8',fontFamily:'DM Sans,sans-serif'}} />
-                  <div style={{fontSize:11,color:'#5a5a78',marginTop:5,lineHeight:1.5}}>Il numero identificativo del tuo Business Manager. Lo trovi in <strong style={{color:'#9090b0'}}>Business Manager → Impostazioni → Info sull'azienda</strong>, in cima alla pagina sotto il nome dell'azienda.</div>
+                  <input type="text" value={settForm.bmId} onChange={e=>setSettForm({...settForm,bmId:e.target.value})} placeholder="Es. 123456789012345" style={{width:'100%',background:'#1a1a24',border:'1px solid #2a2a38',borderRadius:8,padding:'9px 12px',fontSize:13,color:'#f0f0f8',fontFamily:'monospace'}} />
+                  <div style={{fontSize:11,color:'#5a5a78',marginTop:5,lineHeight:1.5}}>Il numero ID del tuo Business Manager (vedi step 3). È un numero lungo tipo <em>123456789012345</em> — niente prefissi, solo cifre.</div>
                 </div>
-                <div style={{marginBottom:12}}>
-                  <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>App ID Meta <span style={{color:'#3a3a4e',fontWeight:400}}>(opzionale)</span></label>
-                  <input type="text" value={settForm.appId} onChange={e=>setSettForm({...settForm,appId:e.target.value})} style={{width:'100%',background:'#1a1a24',border:'1px solid #2a2a38',borderRadius:8,padding:'9px 12px',fontSize:13,color:'#f0f0f8',fontFamily:'DM Sans,sans-serif'}} />
-                  <div style={{fontSize:11,color:'#5a5a78',marginTop:5,lineHeight:1.5}}>L'ID dell'app Meta associata al tuo account. Non è obbligatorio per usare AdFlow — serve solo se utilizzi funzionalità avanzate. Lo trovi su <strong style={{color:'#9090b0'}}>developers.facebook.com</strong> nella dashboard della tua app.</div>
-                </div>
+
                 <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
                   <button onClick={saveSettingsForm} style={{padding:'7px 16px',borderRadius:8,background:'#6c63ff',color:'white',border:'none',fontSize:12,cursor:'pointer',fontFamily:'DM Sans,sans-serif'}}>Salva Credenziali</button>
                   <button onClick={()=>setTokenVisible(!tokenVisible)} style={{padding:'7px 16px',borderRadius:8,background:'#1a1a24',color:'#9090b0',border:'1px solid #2a2a38',fontSize:12,cursor:'pointer',fontFamily:'DM Sans,sans-serif'}}>{tokenVisible?'Nascondi Token':'Mostra Token'}</button>
