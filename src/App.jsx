@@ -498,12 +498,21 @@ export default function App() {
               <div style={{background:'#111118',border:'1px solid #2a2a38',borderRadius:12,padding:20,marginBottom:16}}>
                 <div style={{fontSize:14,fontWeight:600,marginBottom:4}}>Connessione Meta API</div>
                 <div style={{fontSize:12,color:'#5a5a78',marginBottom:14}}>Ogni utente inserisce le proprie credenziali — i dati restano nel tuo browser</div>
-                {[{label:'System User Token',key:'token',type:'password'},{label:'Business Manager ID',key:'bmId',type:'text'},{label:'App ID Meta',key:'appId',type:'text'}].map(f=>(
-                  <div key={f.key} style={{marginBottom:12}}>
-                    <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>{f.label}</label>
-                    <input type={f.key==='token' && !tokenVisible ? 'password' : 'text'} value={settForm[f.key]} onChange={e=>setSettForm({...settForm,[f.key]:e.target.value})} style={{width:'100%',background:'#1a1a24',border:'1px solid #2a2a38',borderRadius:8,padding:'9px 12px',fontSize:13,color:'#f0f0f8',fontFamily:'DM Sans,sans-serif',fontFamily: f.key==='token' ? 'monospace' : 'DM Sans,sans-serif'}} />
-                  </div>
-                ))}
+                <div style={{marginBottom:12}}>
+                  <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>System User Token</label>
+                  <input type={!tokenVisible ? 'password' : 'text'} value={settForm.token} onChange={e=>setSettForm({...settForm,token:e.target.value})} style={{width:'100%',background:'#1a1a24',border:'1px solid #2a2a38',borderRadius:8,padding:'9px 12px',fontSize:13,color:'#f0f0f8',fontFamily:'monospace'}} />
+                  <div style={{fontSize:11,color:'#5a5a78',marginTop:5,lineHeight:1.5}}>È il token che autorizza AdFlow ad accedere alle tue campagne. Trovalo in <strong style={{color:'#9090b0'}}>Business Manager → Impostazioni → Utenti di sistema</strong>, crea un utente di sistema con ruolo Admin e genera il token con i permessi <em>ads_management</em>.</div>
+                </div>
+                <div style={{marginBottom:12}}>
+                  <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Business Manager ID</label>
+                  <input type="text" value={settForm.bmId} onChange={e=>setSettForm({...settForm,bmId:e.target.value})} style={{width:'100%',background:'#1a1a24',border:'1px solid #2a2a38',borderRadius:8,padding:'9px 12px',fontSize:13,color:'#f0f0f8',fontFamily:'DM Sans,sans-serif'}} />
+                  <div style={{fontSize:11,color:'#5a5a78',marginTop:5,lineHeight:1.5}}>Il numero identificativo del tuo Business Manager. Lo trovi in <strong style={{color:'#9090b0'}}>Business Manager → Impostazioni → Info sull'azienda</strong>, in cima alla pagina sotto il nome dell'azienda.</div>
+                </div>
+                <div style={{marginBottom:12}}>
+                  <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>App ID Meta <span style={{color:'#3a3a4e',fontWeight:400}}>(opzionale)</span></label>
+                  <input type="text" value={settForm.appId} onChange={e=>setSettForm({...settForm,appId:e.target.value})} style={{width:'100%',background:'#1a1a24',border:'1px solid #2a2a38',borderRadius:8,padding:'9px 12px',fontSize:13,color:'#f0f0f8',fontFamily:'DM Sans,sans-serif'}} />
+                  <div style={{fontSize:11,color:'#5a5a78',marginTop:5,lineHeight:1.5}}>L'ID dell'app Meta associata al tuo account. Non è obbligatorio per usare AdFlow — serve solo se utilizzi funzionalità avanzate. Lo trovi su <strong style={{color:'#9090b0'}}>developers.facebook.com</strong> nella dashboard della tua app.</div>
+                </div>
                 <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
                   <button onClick={saveSettingsForm} style={{padding:'7px 16px',borderRadius:8,background:'#6c63ff',color:'white',border:'none',fontSize:12,cursor:'pointer',fontFamily:'DM Sans,sans-serif'}}>Salva Credenziali</button>
                   <button onClick={()=>setTokenVisible(!tokenVisible)} style={{padding:'7px 16px',borderRadius:8,background:'#1a1a24',color:'#9090b0',border:'1px solid #2a2a38',fontSize:12,cursor:'pointer',fontFamily:'DM Sans,sans-serif'}}>{tokenVisible?'Nascondi Token':'Mostra Token'}</button>
@@ -533,12 +542,19 @@ export default function App() {
               <div style={{fontFamily:'Syne,sans-serif',fontSize:16,fontWeight:700}}>Aggiungi Cliente</div>
               <button onClick={()=>setModalClient(false)} style={{background:'none',border:'none',color:'#5a5a78',cursor:'pointer',fontSize:18}}>✕</button>
             </div>
-            {[{label:'Nome Cliente / Azienda',key:'name',placeholder:'Es. Rossini Srl'},{label:'Ad Account ID',key:'adAccount',placeholder:'act_123456789'},{label:'Pagina Facebook ID',key:'pageId',placeholder:'123456789'}].map(f=>(
-              <div key={f.key} style={{marginBottom:14}}>
-                <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>{f.label}</label>
-                <input value={clientForm[f.key]} onChange={e=>setClientForm({...clientForm,[f.key]:e.target.value})} placeholder={f.placeholder} style={{width:'100%',background:'#1a1a24',border:'1px solid #2a2a38',borderRadius:8,padding:'9px 12px',fontSize:13,color:'#f0f0f8',fontFamily:'DM Sans,sans-serif'}} />
-              </div>
-            ))}
+            <div style={{marginBottom:14}}>
+              <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Nome Cliente / Azienda</label>
+              <input value={clientForm.name} onChange={e=>setClientForm({...clientForm,name:e.target.value})} placeholder="Es. Rossini Srl" style={{width:'100%',background:'#1a1a24',border:'1px solid #2a2a38',borderRadius:8,padding:'9px 12px',fontSize:13,color:'#f0f0f8',fontFamily:'DM Sans,sans-serif'}} />
+            </div>
+            <div style={{marginBottom:14}}>
+              <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Ad Account ID</label>
+              <input value={clientForm.adAccount} onChange={e=>setClientForm({...clientForm,adAccount:e.target.value})} placeholder="act_123456789" style={{width:'100%',background:'#1a1a24',border:'1px solid #2a2a38',borderRadius:8,padding:'9px 12px',fontSize:13,color:'#f0f0f8',fontFamily:'monospace'}} />
+              <div style={{fontSize:11,color:'#5a5a78',marginTop:5,lineHeight:1.5}}>Il formato è sempre <strong style={{color:'#9090b0'}}>act_</strong> seguito da un numero (es. <em>act_123456789</em>). Lo trovi in <strong style={{color:'#9090b0'}}>Business Manager → Account pubblicitari</strong>, oppure nell'URL di Gestione inserzioni quando sei dentro all'account del cliente.</div>
+            </div>
+            <div style={{marginBottom:14}}>
+              <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Pagina Facebook ID</label>
+              <input value={clientForm.pageId} onChange={e=>setClientForm({...clientForm,pageId:e.target.value})} placeholder="123456789" style={{width:'100%',background:'#1a1a24',border:'1px solid #2a2a38',borderRadius:8,padding:'9px 12px',fontSize:13,color:'#f0f0f8',fontFamily:'DM Sans,sans-serif'}} />
+            </div>
             <div style={{marginBottom:14}}>
               <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Settore</label>
               <select value={clientForm.sector} onChange={e=>setClientForm({...clientForm,sector:e.target.value})} style={{width:'100%',background:'#1a1a24',border:'1px solid #2a2a38',borderRadius:8,padding:'9px 12px',fontSize:13,color:'#f0f0f8',fontFamily:'DM Sans,sans-serif'}}>
