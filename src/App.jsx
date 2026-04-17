@@ -553,14 +553,6 @@ export default function App() {
                   {connStatus && <span style={{fontSize:12,color: connStatus.includes('✅') ? '#22c55e' : connStatus.includes('❌') ? '#ef4444' : '#9090b0'}}>{connStatus}</span>}
                 </div>
               </div>
-              <div style={{background:'#111118',border:'1px solid #2a2a38',borderRadius:12,padding:20}}>
-                <div style={{fontSize:14,fontWeight:600,marginBottom:4}}>Backup Dati</div>
-                <div style={{fontSize:12,color:'#5a5a78',marginBottom:14}}>Esporta i tuoi dati per non perderli</div>
-                <div style={{display:'flex',gap:8}}>
-                  <button onClick={exportData} style={{padding:'7px 16px',borderRadius:8,background:'#1a1a24',color:'#9090b0',border:'1px solid #2a2a38',fontSize:12,cursor:'pointer',fontFamily:'DM Sans,sans-serif'}}>Esporta Backup JSON</button>
-                  <button onClick={()=>{if(confirm('Cancellare tutti i dati?')){localStorage.clear();window.location.reload()}}} style={{padding:'7px 16px',borderRadius:8,background:'rgba(239,68,68,.1)',color:'#f87171',border:'1px solid rgba(239,68,68,.3)',fontSize:12,cursor:'pointer',fontFamily:'DM Sans,sans-serif'}}>Cancella tutti i dati</button>
-                </div>
-              </div>
             </div>
           )}
 
