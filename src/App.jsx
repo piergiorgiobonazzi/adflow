@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -66,6 +66,7 @@ function getRules() {
 function saveRules(r) { localStorage.setItem('adflow_rules', JSON.stringify(r)) }
 
 const DRAFT_KEY = 'adflow_camp_draft'
+const PAGE_KEY  = 'adflow_active_page'
 function getDraft() { try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null') } catch { return null } }
 function clearDraftStorage() { localStorage.removeItem(DRAFT_KEY) }
 
@@ -99,7 +100,7 @@ function buildTargeting(form) {
 }
 
 export default function App() {
-  const [page, setPage] = useState('dashboard')
+  const [page, setPage] = useState(() => localStorage.getItem(PAGE_KEY) || 'dashboard')
   const [clients, setClients] = useState(getClients())
   const [campagne, setCampagne] = useState(getCampagne())
   const [settings, setSettings] = useState(getSettings())
@@ -113,9 +114,9 @@ export default function App() {
   const [connStatus, setConnStatus] = useState('')
   const [launching, setLaunching] = useState(false)
   const [previewFormat, setPreviewFormat] = useState('fb_feed')
-  const [imageFile, setImageFile] = useState(null)
-  const [imageBase64, setImageBase64] = useState(null)
-  const [imagePreview, setImagePreview] = useState(null)
+  const [multiImages, setMultiImages] = useState({ square: null, vertical: null, stories: null })
+  const [videoFile, setVideoFile] = useState(null)
+  const [videoPreview, setVideoPreview] = useState(null)
   const [dashMetrics, setDashMetrics] = useState({ spend: '—', roas: '—' })
   const [clientInsights, setClientInsights] = useState({})
   const [reportLoading, setReportLoading] = useState(null)
@@ -124,25 +125,17 @@ export default function App() {
   const [pagesLoading, setPagesLoading] = useState(false)
   const [audiences, setAudiences] = useState([])
   const [audiencesLoading, setAudiencesLoading] = useState(false)
-  const [carouselCards, setCarouselCards] = useState(() => {
-    const d = getDraft()
-    return d?.cards?.map(c => ({ ...c, imageBase64: null, imagePreview: null })) || DEFAULT_CAROUSEL
-  })
+  const [carouselCards, setCarouselCards] = useState(DEFAULT_CAROUSEL.map(c => ({ ...c })))
   const [dashChartData, setDashChartData] = useState([])
   const [selectedCampaign, setSelectedCampaign] = useState(null)
   const [breakdownData, setBreakdownData] = useState({})
   const [breakdownLoading, setBreakdownLoading] = useState(false)
   const [breakdownTab, setBreakdownTab] = useState('age')
 
-  const [campForm, setCampForm] = useState(() => {
-    const d = getDraft()
-    if (d?.form?.nome) return d.form
-    return { ...DEFAULT_CAMP_FORM, startDate: new Date().toISOString().split('T')[0] }
-  })
-  const [hasDraft] = useState(() => {
-    const d = getDraft()
-    return !!(d?.form?.nome)
-  })
+  const [campForm, setCampForm] = useState(() => ({ ...DEFAULT_CAMP_FORM, startDate: new Date().toISOString().split('T')[0] }))
+  const [showDraftBanner, setShowDraftBanner] = useState(false)
+
+  const saveTimerRef = useRef(null)
 
   const [clientForm, setClientForm] = useState({ name:'', adAccount:'', pageId:'', sector:'E-commerce', notes:'' })
   const [settForm, setSettForm] = useState({ agencyName: settings.agencyName||'', email: settings.email||'', token: settings.token||'', bmId: settings.bmId||'', appId: settings.appId||'' })
@@ -154,14 +147,23 @@ export default function App() {
   }, [settings.token])
 
   useEffect(() => {
-    try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({
-        form: campForm,
-        cards: carouselCards.map(({ id, title, url }) => ({ id, title, url })),
-        savedAt: new Date().toISOString(),
-      }))
-    } catch {}
-  }, [campForm, carouselCards])
+    localStorage.setItem(PAGE_KEY, page)
+  }, [page])
+
+  useEffect(() => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({
+          form: campForm,
+          cards: carouselCards.map(({ id, title, url }) => ({ id, title, url })),
+          step,
+          savedAt: new Date().toISOString(),
+        }))
+      } catch {}
+    }, 400)
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
+  }, [campForm, carouselCards, step])
 
   useEffect(() => {
     if (!campForm.clienteId || !settings.token) { setAudiences([]); return }
@@ -202,9 +204,31 @@ export default function App() {
     clearDraftStorage()
     setCampForm({ ...DEFAULT_CAMP_FORM, startDate: new Date().toISOString().split('T')[0] })
     setCarouselCards(DEFAULT_CAROUSEL.map(c => ({ ...c })))
-    setImageFile(null); setImageBase64(null); setImagePreview(null)
+    setMultiImages({ square: null, vertical: null, stories: null })
+    setVideoFile(null); setVideoPreview(null)
     setStep(1)
+    setShowDraftBanner(false)
     notify('Bozza cancellata')
+  }
+
+  function navigateToCrea() {
+    const d = getDraft()
+    if (d?.form?.nome) {
+      setShowDraftBanner(true)
+    } else {
+      setShowDraftBanner(false)
+    }
+    setPage('crea')
+  }
+
+  function resumeDraft() {
+    const d = getDraft()
+    if (!d) return
+    if (d.form) setCampForm(d.form)
+    if (d.cards) setCarouselCards(d.cards.map(c => ({ ...c, imageBase64: null, imagePreview: null })))
+    if (d.step) setStep(d.step)
+    setShowDraftBanner(false)
+    notify('Bozza ripristinata')
   }
 
   function metaHeaders() {
@@ -310,16 +334,19 @@ export default function App() {
   }
 
   // ── Image upload ───────────────────────────────────────────────────────────
-  function handleImageSelect(e) {
-    const file = e.target.files?.[0]
+  function handleMultiImageSelect(slot, file) {
     if (!file) return
-    setImageFile(file)
     const reader = new FileReader()
     reader.onload = (ev) => {
-      setImagePreview(ev.target.result)
-      setImageBase64(ev.target.result.split(',')[1])
+      setMultiImages(prev => ({ ...prev, [slot]: { base64: ev.target.result.split(',')[1], preview: ev.target.result, fileName: file.name } }))
     }
     reader.readAsDataURL(file)
+  }
+
+  function handleVideoSelect(file) {
+    if (!file) return
+    setVideoFile(file)
+    setVideoPreview(URL.createObjectURL(file))
   }
 
   // ── Launch campaign (full Meta flow) ───────────────────────────────────────
@@ -391,14 +418,18 @@ export default function App() {
             carouselHashes.push(imgData.images ? Object.values(imgData.images)[0]?.hash : null)
           } catch { carouselHashes.push(null) }
         }
-      } else if (imageBase64 && adsetId) {
-        notify('3/4 Upload immagine creativa...')
-        try {
-          const imgData = await (await fetch(`${API}/api/adaccounts/${client.adAccount}/adimages`, {
-            method: 'POST', headers, body: JSON.stringify({ imageBase64, filename: imageFile?.name || 'creative.jpg' }),
-          })).json()
-          if (!imgData.error && imgData.images) imageHash = Object.values(imgData.images)[0]?.hash || null
-        } catch {}
+      } else {
+        const primaryBase64 = multiImages.square?.base64 || multiImages.vertical?.base64 || multiImages.stories?.base64
+        const primaryFileName = multiImages.square?.fileName || multiImages.vertical?.fileName || multiImages.stories?.fileName || 'creative.jpg'
+        if (primaryBase64 && adsetId) {
+          notify('3/4 Upload immagine creativa...')
+          try {
+            const imgData = await (await fetch(`${API}/api/adaccounts/${client.adAccount}/adimages`, {
+              method: 'POST', headers, body: JSON.stringify({ imageBase64: primaryBase64, filename: primaryFileName }),
+            })).json()
+            if (!imgData.error && imgData.images) imageHash = Object.values(imgData.images)[0]?.hash || null
+          } catch {}
+        }
       }
 
       // 4 — Creative + Ad
@@ -472,9 +503,11 @@ export default function App() {
           : '✅ Campagna creata su Meta!'
       notify(msg)
       clearDraftStorage()
-      setImageFile(null); setImageBase64(null); setImagePreview(null)
+      setMultiImages({ square: null, vertical: null, stories: null })
+      setVideoFile(null); setVideoPreview(null)
       setCampForm({ ...DEFAULT_CAMP_FORM, startDate: new Date().toISOString().split('T')[0] })
       setCarouselCards(DEFAULT_CAROUSEL.map(c => ({ ...c })))
+      setStep(1)
       setTimeout(() => setPage('campagne'), 1800)
     } catch {
       notify('❌ Errore durante la creazione')
@@ -774,7 +807,7 @@ export default function App() {
         </div>
         <nav style={{padding:'12px 10px',flex:1}}>
           {navItems.map(n => (
-            <button key={n.id} onClick={() => setPage(n.id)} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 10px',borderRadius:8,cursor:'pointer',fontSize:13,color:page===n.id?'#8b85ff':'#9090b0',background:page===n.id?'rgba(108,99,255,.15)':'none',border:'none',width:'100%',textAlign:'left',marginBottom:2,fontFamily:'DM Sans,sans-serif'}}>
+            <button key={n.id} onClick={() => n.id === 'crea' ? navigateToCrea() : setPage(n.id)} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 10px',borderRadius:8,cursor:'pointer',fontSize:13,color:page===n.id?'#8b85ff':'#9090b0',background:page===n.id?'rgba(108,99,255,.15)':'none',border:'none',width:'100%',textAlign:'left',marginBottom:2,fontFamily:'DM Sans,sans-serif'}}>
               <span style={{fontSize:14,opacity:.8}}>{n.icon}</span>{n.label}
             </button>
           ))}
@@ -796,7 +829,7 @@ export default function App() {
           <div style={{fontFamily:'Syne,sans-serif',fontSize:18,fontWeight:700}}>{navItems.find(n=>n.id===page)?.label}</div>
           <div style={{display:'flex',gap:8}}>
             <button onClick={() => setPage('impostazioni')} style={btnSecondary}>⚙ Token</button>
-            <button onClick={() => { setPage('crea'); setStep(1) }} style={btnPrimary}>+ Nuova Campagna</button>
+            <button onClick={() => { navigateToCrea(); setStep(1) }} style={btnPrimary}>+ Nuova Campagna</button>
           </div>
         </div>
 
@@ -897,7 +930,7 @@ export default function App() {
                 <div style={{fontSize:14,fontWeight:600}}>Tutte le Campagne <span style={{color:'#5a5a78',fontWeight:400,fontSize:12}}>({campagne.length})</span></div>
                 <div style={{display:'flex',gap:8}}>
                   <button onClick={syncCampaigns} style={btnSecondary}>⟳ Sync Meta</button>
-                  <button onClick={() => { setPage('crea'); setStep(1) }} style={btnPrimary}>+ Nuova</button>
+                  <button onClick={() => { navigateToCrea(); setStep(1) }} style={btnPrimary}>+ Nuova</button>
                 </div>
               </div>
               {campagne.length === 0 ? (
@@ -936,16 +969,19 @@ export default function App() {
           {page==='crea' && (
             <div>
               {/* Draft banner */}
-              {hasDraft && campForm.nome && (
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.25)',borderRadius:8,marginBottom:16,fontSize:12}}>
-                  <span style={{color:'#fbbf24'}}>⚡ Bozza ripristinata — continui da dove ti eri fermato.</span>
-                  <button onClick={clearDraft} style={{...btnDanger,padding:'3px 10px',fontSize:11}}>✕ Cancella bozza</button>
+              {showDraftBanner && (
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',background:'rgba(108,99,255,.1)',border:'1px solid rgba(108,99,255,.3)',borderRadius:8,marginBottom:16,fontSize:12,gap:12,flexWrap:'wrap'}}>
+                  <span style={{color:'#c0bcff',fontWeight:500}}>💾 Hai una bozza salvata — vuoi continuare da dove ti eri fermato?</span>
+                  <div style={{display:'flex',gap:8,flexShrink:0}}>
+                    <button onClick={resumeDraft} style={{...btnPrimary,padding:'5px 12px',fontSize:11}}>Riprendi bozza</button>
+                    <button onClick={clearDraft} style={{...btnSecondary,padding:'5px 12px',fontSize:11}}>Inizia da zero</button>
+                  </div>
                 </div>
               )}
               {/* Auto-save indicator + clear button */}
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
                 <div style={{fontSize:11,color:'#3a3a58'}}>💾 Salvato automaticamente</div>
-                {campForm.nome && <button onClick={clearDraft} style={{...btnSecondary,padding:'4px 10px',fontSize:11,color:'#5a5a78'}}>✕ Cancella bozza</button>}
+                {campForm.nome && !showDraftBanner && <button onClick={clearDraft} style={{...btnSecondary,padding:'4px 10px',fontSize:11,color:'#5a5a78'}}>✕ Cancella bozza</button>}
               </div>
               {/* Stepper */}
               <div style={{display:'flex',alignItems:'center',gap:0,marginBottom:28}}>
@@ -1117,24 +1153,73 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Image upload */}
-                    <div style={{marginBottom:14}}>
-                      <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Immagine creativa</label>
-                      <label style={{display:'block',border:'1px dashed #3a3a5e',borderRadius:8,padding:imagePreview?0:20,textAlign:'center',cursor:'pointer',background:'#1a1a24',overflow:'hidden'}}>
-                        {imagePreview
-                          ? <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:8,minHeight:80}}>
-                              <img src={imagePreview} alt="preview" style={{maxWidth:200,maxHeight:200,objectFit:'contain',borderRadius:6,display:'block'}} />
+                    {/* Format-specific image upload */}
+                    {campForm.formato === 'image' && (
+                      <div style={{marginBottom:14}}>
+                        <div style={{fontSize:12,color:'#9090b0',marginBottom:10,fontWeight:600}}>Immagini creative</div>
+                        {[
+                          { slot:'square',   label:'Quadrata 1:1',   dims:'1080×1080px', desc:'Feed Facebook/Instagram' },
+                          { slot:'vertical', label:'Verticale 4:5',  dims:'1080×1350px', desc:'Feed mobile' },
+                          { slot:'stories',  label:'Stories 9:16',   dims:'1080×1920px', desc:'Stories & Reels' },
+                        ].map(({ slot, label, dims, desc }) => (
+                          <div key={slot} style={{display:'flex',alignItems:'center',gap:12,marginBottom:10,padding:10,background:'#0d0d14',border:'1px solid #2a2a38',borderRadius:8}}>
+                            <label style={{cursor:'pointer',flexShrink:0}}>
+                              {multiImages[slot]?.preview
+                                ? <img src={multiImages[slot].preview} style={{width:64,height:64,objectFit:'cover',borderRadius:6,display:'block'}} />
+                                : <div style={{width:64,height:64,background:'#1a1a24',border:'1px dashed #3a3a5e',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,color:'#5a5a78'}}>+</div>
+                              }
+                              <input type="file" accept="image/*" style={{display:'none'}} onChange={e => handleMultiImageSelect(slot, e.target.files?.[0])} />
+                            </label>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontSize:12,fontWeight:600,color:'#e0e0f0'}}>{label}</div>
+                              <div style={{fontSize:11,color:'#5a5a78'}}>{dims} · {desc}</div>
+                              {multiImages[slot] && (
+                                <button onClick={() => setMultiImages(p => ({ ...p, [slot]: null }))} style={{...btnDanger,padding:'2px 7px',fontSize:10,marginTop:4}}>✕ Rimuovi</button>
+                              )}
                             </div>
-                          : <div style={{color:'#5a5a78',fontSize:12}}>
-                              <div style={{fontSize:24,marginBottom:6}}>🖼️</div>
-                              Clicca per caricare un'immagine (JPG, PNG — max 8 MB)
-                            </div>
-                        }
-                        <input type="file" accept="image/*" onChange={handleImageSelect} style={{display:'none'}} />
-                      </label>
-                      {imagePreview && <button onClick={() => { setImageFile(null); setImageBase64(null); setImagePreview(null) }} style={{...btnDanger,marginTop:6,fontSize:11}}>✕ Rimuovi immagine</button>}
-                      <div style={helpText}>Obbligatoria per creare l'annuncio completo su Meta. Dimensione consigliata: 1200×628 px.</div>
-                    </div>
+                          </div>
+                        ))}
+                        <div style={helpText}>Almeno una immagine richiesta. Priorità: quadrata → verticale → stories.</div>
+                      </div>
+                    )}
+
+                    {campForm.formato === 'video' && (
+                      <div style={{marginBottom:14}}>
+                        <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Video creativo</label>
+                        <label style={{display:'block',border:'1px dashed #3a3a5e',borderRadius:8,padding:videoPreview?0:20,textAlign:'center',cursor:'pointer',background:'#1a1a24',overflow:'hidden'}}>
+                          {videoPreview
+                            ? <video src={videoPreview} controls style={{width:'100%',maxHeight:200,display:'block'}} />
+                            : <div style={{color:'#5a5a78',fontSize:12}}>
+                                <div style={{fontSize:24,marginBottom:6}}>🎬</div>
+                                Clicca per caricare un video (MP4 — max 4 GB)
+                              </div>
+                          }
+                          <input type="file" accept="video/*" style={{display:'none'}} onChange={e => handleVideoSelect(e.target.files?.[0])} />
+                        </label>
+                        {videoPreview && <button onClick={() => { setVideoFile(null); setVideoPreview(null) }} style={{...btnDanger,marginTop:6,fontSize:11}}>✕ Rimuovi video</button>}
+                      </div>
+                    )}
+
+                    {campForm.formato === 'collection' && (
+                      <div style={{marginBottom:14}}>
+                        <div style={{fontSize:12,color:'#9090b0',marginBottom:10,fontWeight:600}}>Immagine di copertina</div>
+                        <div style={{display:'flex',alignItems:'center',gap:12,padding:10,background:'#0d0d14',border:'1px solid #2a2a38',borderRadius:8,marginBottom:8}}>
+                          <label style={{cursor:'pointer',flexShrink:0}}>
+                            {multiImages.square?.preview
+                              ? <img src={multiImages.square.preview} style={{width:64,height:64,objectFit:'cover',borderRadius:6,display:'block'}} />
+                              : <div style={{width:64,height:64,background:'#1a1a24',border:'1px dashed #3a3a5e',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,color:'#5a5a78'}}>+</div>
+                            }
+                            <input type="file" accept="image/*" style={{display:'none'}} onChange={e => handleMultiImageSelect('square', e.target.files?.[0])} />
+                          </label>
+                          <div style={{flex:1}}>
+                            <div style={{fontSize:12,fontWeight:600,color:'#e0e0f0'}}>Copertina Collection</div>
+                            <div style={{fontSize:11,color:'#5a5a78'}}>1200×628px consigliato</div>
+                            {multiImages.square && <button onClick={() => setMultiImages(p => ({ ...p, square: null }))} style={{...btnDanger,padding:'2px 7px',fontSize:10,marginTop:4}}>✕ Rimuovi</button>}
+                          </div>
+                        </div>
+                        <div style={{padding:'10px 14px',background:'rgba(108,99,255,.08)',border:'1px solid rgba(108,99,255,.2)',borderRadius:8,fontSize:11,color:'#8b85ff'}}>ℹ I prodotti della collection vengono gestiti direttamente dal catalogo Meta collegato all'ad account.</div>
+                      </div>
+                    )}
 
                     {[{label:'Testo principale',key:'adText',tag:'textarea'},{label:'Titolo (Headline)',key:'adHeadline'},{label:'Descrizione',key:'adDesc'},{label:'URL di destinazione',key:'adUrl'}].map(f => (
                       <div key={f.key} style={{marginBottom:12}}>
@@ -1224,6 +1309,9 @@ export default function App() {
                   ]
 
                   const isCarousel = campForm.formato === 'carousel'
+                  const fbFeedImg  = multiImages.square?.preview || multiImages.vertical?.preview || null
+                  const igFeedImg  = multiImages.square?.preview || multiImages.vertical?.preview || null
+                  const igStoryImg = multiImages.stories?.preview || multiImages.vertical?.preview || null
 
                   const FbFeedPreview = () => (
                     <div style={{background:'#fff',borderRadius:10,overflow:'hidden',width:360,boxShadow:'0 2px 16px rgba(0,0,0,.45)',color:'#1c1e21',fontFamily:'Helvetica Neue,Arial,sans-serif'}}>
@@ -1250,7 +1338,7 @@ export default function App() {
                         </div>
                       ) : (
                         <>
-                          {imagePreview ? <img src={imagePreview} alt="ad" style={{width:'100%',height:300,objectFit:'cover',display:'block'}} /> : <div style={{height:300,background:'#e4e6ea',display:'flex',alignItems:'center',justifyContent:'center',fontSize:32,color:'#bec3c9'}}>🖼️</div>}
+                          {fbFeedImg ? <img src={fbFeedImg} alt="ad" style={{width:'100%',height:300,objectFit:'cover',display:'block'}} /> : <div style={{height:300,background:'#e4e6ea',display:'flex',alignItems:'center',justifyContent:'center',fontSize:32,color:'#bec3c9'}}>🖼️</div>}
                           <div style={{background:'#f0f2f5',padding:'8px 12px',display:'flex',alignItems:'center',gap:8}}>
                             <div style={{flex:1,minWidth:0}}>
                               {displayUrl ? <div style={{fontSize:11,color:'#65676b',marginBottom:1,textTransform:'uppercase',letterSpacing:.3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{displayUrl}</div> : ph('TUOSITO.COM')}
@@ -1269,8 +1357,8 @@ export default function App() {
 
                   const IgStoriesPreview = () => (
                     <div style={{background:'#000',borderRadius:14,overflow:'hidden',width:220,height:390,position:'relative',boxShadow:'0 2px 16px rgba(0,0,0,.55)',fontFamily:'system-ui,-apple-system,sans-serif'}}>
-                      {imagePreview
-                        ? <img src={imagePreview} alt="ad" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}} />
+                      {igStoryImg
+                        ? <img src={igStoryImg} alt="ad" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}} />
                         : <div style={{position:'absolute',inset:0,background:'linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:36}}>🖼️</div>
                       }
                       <div style={{position:'absolute',inset:0,background:'linear-gradient(to bottom,rgba(0,0,0,.35) 0%,transparent 30%,transparent 60%,rgba(0,0,0,.55) 100%)'}} />
@@ -1306,8 +1394,8 @@ export default function App() {
                         <div style={{fontSize:16,color:'#262626',letterSpacing:2}}>···</div>
                       </div>
                       {/* Square image */}
-                      {imagePreview
-                        ? <img src={imagePreview} alt="ad" style={{width:'100%',height:320,objectFit:'cover',display:'block'}} />
+                      {igFeedImg
+                        ? <img src={igFeedImg} alt="ad" style={{width:'100%',height:320,objectFit:'cover',display:'block'}} />
                         : <div style={{height:320,background:'#efefef',display:'flex',alignItems:'center',justifyContent:'center',fontSize:36,color:'#c7c7c7'}}>🖼️</div>
                       }
                       {/* IG actions */}
@@ -1363,7 +1451,9 @@ export default function App() {
                       {previewFormat==='ig_feed'    && <IgFeedPreview />}
                     </div>
 
-                    {!imagePreview && <div style={{padding:'10px 14px',background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.2)',borderRadius:8,fontSize:12,color:'#fbbf24'}}>⚠ Nessuna immagine caricata — verrà creata la campagna e l'Ad Set, ma non l'annuncio.</div>}
+                    {campForm.formato === 'image' && !multiImages.square && !multiImages.vertical && !multiImages.stories && (
+                      <div style={{padding:'10px 14px',background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.2)',borderRadius:8,fontSize:12,color:'#fbbf24'}}>⚠ Nessuna immagine caricata — verrà creata la campagna e l'Ad Set, ma non l'annuncio.</div>
+                    )}
                   </div>
                   )
                 })()}
