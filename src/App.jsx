@@ -65,8 +65,8 @@ function getRules() {
 }
 function saveRules(r) { localStorage.setItem('adflow_rules', JSON.stringify(r)) }
 
-const DRAFT_KEY = 'adflow_camp_draft'
-const PAGE_KEY  = 'adflow_active_page'
+const DRAFT_KEY = 'adflow_draft'
+const PAGE_KEY  = 'adflow_last_page'
 function getDraft() { try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null') } catch { return null } }
 function clearDraftStorage() { localStorage.removeItem(DRAFT_KEY) }
 
@@ -133,9 +133,10 @@ export default function App() {
   const [breakdownTab, setBreakdownTab] = useState('age')
 
   const [campForm, setCampForm] = useState(() => ({ ...DEFAULT_CAMP_FORM, startDate: new Date().toISOString().split('T')[0] }))
-  const [showDraftBanner, setShowDraftBanner] = useState(false)
-
-  const saveTimerRef = useRef(null)
+  const [showDraftBanner, setShowDraftBanner] = useState(() => {
+    const restoredPage = localStorage.getItem(PAGE_KEY) || 'dashboard'
+    return restoredPage === 'crea' && !!getDraft()
+  })
 
   const [clientForm, setClientForm] = useState({ name:'', adAccount:'', pageId:'', sector:'E-commerce', notes:'' })
   const [settForm, setSettForm] = useState({ agencyName: settings.agencyName||'', email: settings.email||'', token: settings.token||'', bmId: settings.bmId||'', appId: settings.appId||'' })
@@ -151,18 +152,13 @@ export default function App() {
   }, [page])
 
   useEffect(() => {
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    saveTimerRef.current = setTimeout(() => {
-      try {
-        localStorage.setItem(DRAFT_KEY, JSON.stringify({
-          form: campForm,
-          cards: carouselCards.map(({ id, title, url }) => ({ id, title, url })),
-          step,
-          savedAt: new Date().toISOString(),
-        }))
-      } catch {}
-    }, 400)
-    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        form: campForm,
+        cards: carouselCards.map(({ id, title, url }) => ({ id, title, url })),
+        step,
+      }))
+    } catch {}
   }, [campForm, carouselCards, step])
 
   useEffect(() => {
@@ -968,20 +964,23 @@ export default function App() {
           {/* ── CREA CAMPAGNA ─────────────────────────────────────────────── */}
           {page==='crea' && (
             <div>
-              {/* Draft banner */}
-              {showDraftBanner && (
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',background:'rgba(108,99,255,.1)',border:'1px solid rgba(108,99,255,.3)',borderRadius:8,marginBottom:16,fontSize:12,gap:12,flexWrap:'wrap'}}>
-                  <span style={{color:'#c0bcff',fontWeight:500}}>💾 Hai una bozza salvata — vuoi continuare da dove ti eri fermato?</span>
-                  <div style={{display:'flex',gap:8,flexShrink:0}}>
-                    <button onClick={resumeDraft} style={{...btnPrimary,padding:'5px 12px',fontSize:11}}>Riprendi bozza</button>
-                    <button onClick={clearDraft} style={{...btnSecondary,padding:'5px 12px',fontSize:11}}>Inizia da zero</button>
+              {/* Draft banner — blocks the wizard until the user chooses */}
+              {showDraftBanner ? (
+                <div style={{maxWidth:520,margin:'60px auto 0',textAlign:'center'}}>
+                  <div style={{fontSize:32,marginBottom:16}}>💾</div>
+                  <div style={{fontSize:18,fontWeight:700,fontFamily:'Syne,sans-serif',marginBottom:8}}>Hai una bozza non completata</div>
+                  <div style={{fontSize:13,color:'#9090b0',marginBottom:28}}>Vuoi continuare da dove ti eri fermato oppure ricominciare da zero?</div>
+                  <div style={{display:'flex',gap:12,justifyContent:'center'}}>
+                    <button onClick={resumeDraft} style={{...btnPrimary,padding:'10px 24px',fontSize:14,background:'#22c55e',borderRadius:10}}>Riprendi bozza</button>
+                    <button onClick={clearDraft} style={{...btnDanger,padding:'10px 24px',fontSize:14,borderRadius:10}}>Elimina bozza</button>
                   </div>
                 </div>
-              )}
+              ) : (
+              <>
               {/* Auto-save indicator + clear button */}
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
                 <div style={{fontSize:11,color:'#3a3a58'}}>💾 Salvato automaticamente</div>
-                {campForm.nome && !showDraftBanner && <button onClick={clearDraft} style={{...btnSecondary,padding:'4px 10px',fontSize:11,color:'#5a5a78'}}>✕ Cancella bozza</button>}
+                {campForm.nome && <button onClick={clearDraft} style={{...btnSecondary,padding:'4px 10px',fontSize:11,color:'#5a5a78'}}>✕ Cancella bozza</button>}
               </div>
               {/* Stepper */}
               <div style={{display:'flex',alignItems:'center',gap:0,marginBottom:28}}>
@@ -1468,6 +1467,8 @@ export default function App() {
                   </button>
                 )}
               </div>
+              </>
+              )}
             </div>
           )}
 
