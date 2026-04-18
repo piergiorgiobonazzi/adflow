@@ -85,12 +85,14 @@ export default function App() {
   const [clientInsights, setClientInsights] = useState({})
   const [reportLoading, setReportLoading] = useState(null)
   const [rules, setRules] = useState(getRules())
+  const [availablePages, setAvailablePages] = useState([])
+  const [pagesLoading, setPagesLoading] = useState(false)
 
   const [campForm, setCampForm] = useState({
     nome:'', clienteId:'', obiettivo:'OUTCOME_TRAFFIC', formato:'image',
     etaMin:'18', etaMax:'45', genere:'0', paesi:'IT', interessi:'',
     placement:'automatic', adText:'', adHeadline:'', adDesc:'', adUrl:'',
-    adCta:'LEARN_MORE', budgetType:'DAILY', budget:'10',
+    adCta:'LEARN_MORE', pageId:'', budgetType:'DAILY', budget:'10',
     startDate: new Date().toISOString().split('T')[0], startTime:'00:00',
     endDate:'', noEndDate:false, bidStrategy:'LOWEST_COST_WITHOUT_CAP',
   })
@@ -103,6 +105,26 @@ export default function App() {
   useEffect(() => {
     if (settings.token) fetchAllInsights(settings.token)
   }, [settings.token])
+
+  useEffect(() => {
+    if (!campForm.clienteId || !settings.token) { setAvailablePages([]); return }
+    const client = clients.find(c => c.id === campForm.clienteId)
+    if (!client?.adAccount) { setAvailablePages([]); return }
+    setPagesLoading(true)
+    fetch(`${API}/api/pages?account_id=${client.adAccount}`, { headers: { 'x-meta-token': settings.token } })
+      .then(r => r.json())
+      .then(data => {
+        const pages = data.data || []
+        setAvailablePages(pages)
+        if (pages.length === 1) {
+          setCampForm(f => ({ ...f, pageId: pages[0].id }))
+        } else if (client.pageId && pages.find(p => p.id === client.pageId)) {
+          setCampForm(f => ({ ...f, pageId: client.pageId }))
+        }
+      })
+      .catch(() => setAvailablePages([]))
+      .finally(() => setPagesLoading(false))
+  }, [campForm.clienteId, settings.token])
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   function notify(msg) { setNotif(msg); setShowNotif(true); setTimeout(() => setShowNotif(false), 3500) }
@@ -292,15 +314,16 @@ export default function App() {
       }
 
       // 4 — Creative + Ad (if image, URL and page ID available)
+      const resolvedPageId = campForm.pageId || client.pageId
       let adCreated = false
-      if (imageHash && campForm.adUrl && client.pageId && adsetId) {
+      if (imageHash && campForm.adUrl && resolvedPageId && adsetId) {
         notify('4/4 Creazione creative e annuncio...')
         try {
           const creativeRes = await fetch(`${API}/api/adaccounts/${client.adAccount}/adcreatives`, {
             method: 'POST', headers,
             body: JSON.stringify({
               name: campForm.nome + ' – Creative',
-              page_id: client.pageId,
+              page_id: resolvedPageId,
               image_hash: imageHash,
               message: campForm.adText,
               link: campForm.adUrl,
@@ -764,6 +787,40 @@ export default function App() {
                       ))}
                     </div>
 
+                    {/* Page selector */}
+                    <div style={{marginBottom:16}}>
+                      <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Pagina Facebook</label>
+                      {pagesLoading ? (
+                        <div style={{...inputStyle,color:'#5a5a78',display:'flex',alignItems:'center',gap:8}}>
+                          <span style={{fontSize:11}}>⏳</span> Caricamento pagine…
+                        </div>
+                      ) : availablePages.length > 0 ? (
+                        <select
+                          value={campForm.pageId}
+                          onChange={e => setCampForm({...campForm, pageId: e.target.value})}
+                          style={inputStyle}
+                        >
+                          <option value="">— Seleziona pagina —</option>
+                          {availablePages.map(p => (
+                            <option key={p.id} value={p.id}>{p.name}{p.category ? ` (${p.category})` : ''} · {p.id}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={campForm.pageId}
+                          onChange={e => setCampForm({...campForm, pageId: e.target.value})}
+                          placeholder={campForm.clienteId ? 'Nessuna pagina trovata — inserisci ID manuale' : 'Seleziona prima un cliente (Step 1)'}
+                          style={monoInputStyle}
+                        />
+                      )}
+                      <div style={helpText}>
+                        {availablePages.length > 0
+                          ? `${availablePages.length} pagina/e trovata/e per questo account.`
+                          : 'Ricaricata automaticamente quando selezioni il cliente. Inserisci l\'ID manuale come fallback.'}
+                      </div>
+                    </div>
+
                     {/* Image upload */}
                     <div style={{marginBottom:14}}>
                       <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Immagine creativa</label>
@@ -1156,8 +1213,8 @@ export default function App() {
             </div>
             <div style={{marginBottom:14}}>
               <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Pagina Facebook ID</label>
-              <input value={clientForm.pageId} onChange={e=>setClientForm({...clientForm,pageId:e.target.value})} placeholder="123456789" style={monoInputStyle} />
-              <div style={helpText}>Necessario per creare annunci con creatività. Trovalo nell'URL della pagina Facebook o in Business Manager.</div>
+              <input value={clientForm.pageId} onChange={e=>setClientForm({...clientForm,pageId:e.target.value})} placeholder="123456789 (opzionale — caricato automaticamente)" style={monoInputStyle} />
+              <div style={helpText}>AdFlow carica automaticamente le pagine disponibili dall'Ad Account nel wizard di creazione campagna. Inserisci qui l'ID solo come fallback manuale se il caricamento automatico non funziona. Trovalo nell'URL della pagina Facebook o in Business Manager.</div>
             </div>
             <div style={{marginBottom:14}}>
               <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Settore</label>

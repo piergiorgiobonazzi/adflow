@@ -154,6 +154,22 @@ app.delete('/api/campaigns/:id', async (req, res) => {
   } catch { res.status(502).json({ error: 'Errore di rete verso Meta' }) }
 })
 
+// ── Pages ─────────────────────────────────────────────────────────────────────
+app.get('/api/pages', async (req, res) => {
+  const token = resolveToken(req)
+  if (!token) return res.status(401).json({ error: 'Token non fornito' })
+  const { account_id } = req.query
+  if (!account_id) return res.status(400).json({ error: 'account_id obbligatorio' })
+  try {
+    const data = await metaGet(`/${account_id}/promote_pages`, {
+      fields: 'id,name,category',
+      limit: 50,
+    }, token)
+    if (handleMetaError(data, res)) return
+    res.json(data)
+  } catch { res.status(502).json({ error: 'Errore di rete verso Meta' }) }
+})
+
 // ── Ad images ─────────────────────────────────────────────────────────────────
 app.post('/api/adaccounts/:id/adimages', async (req, res) => {
   const token = resolveToken(req)
