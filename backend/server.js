@@ -170,6 +170,22 @@ app.get('/api/pages', async (req, res) => {
   } catch { res.status(502).json({ error: 'Errore di rete verso Meta' }) }
 })
 
+// ── Custom Audiences ──────────────────────────────────────────────────────────
+app.get('/api/audiences', async (req, res) => {
+  const token = resolveToken(req)
+  if (!token) return res.status(401).json({ error: 'Token non fornito' })
+  const { account_id } = req.query
+  if (!account_id) return res.status(400).json({ error: 'account_id obbligatorio' })
+  try {
+    const data = await metaGet(`/${account_id}/customaudiences`, {
+      fields: 'id,name,subtype,approximate_count_lower_bound',
+      limit: 100,
+    }, token)
+    if (handleMetaError(data, res)) return
+    res.json(data)
+  } catch { res.status(502).json({ error: 'Errore di rete verso Meta' }) }
+})
+
 // ── Ad images ─────────────────────────────────────────────────────────────────
 app.post('/api/adaccounts/:id/adimages', async (req, res) => {
   const token = resolveToken(req)
@@ -260,9 +276,11 @@ app.post('/api/adaccounts/:id/ads', async (req, res) => {
 app.get('/api/campaigns/:id/insights', async (req, res) => {
   const token = resolveToken(req)
   if (!token) return res.status(401).json({ error: 'Token non fornito' })
-  const { date_preset = 'last_30d', since, until } = req.query
+  const { date_preset = 'last_30d', since, until, breakdowns, time_increment } = req.query
   try {
     const params = { fields: 'impressions,reach,clicks,spend,ctr,cpc,cpm,frequency,actions,action_values' }
+    if (breakdowns) params.breakdowns = breakdowns
+    if (time_increment) params.time_increment = time_increment
     if (since && until) params.time_range = JSON.stringify({ since, until })
     else params.date_preset = date_preset
     const data = await metaGet(`/${req.params.id}/insights`, params, token)
@@ -274,14 +292,12 @@ app.get('/api/campaigns/:id/insights', async (req, res) => {
 app.get('/api/insights', async (req, res) => {
   const token = resolveToken(req)
   if (!token) return res.status(401).json({ error: 'Token non fornito' })
-  const { account_id, date_preset = 'last_30d' } = req.query
+  const { account_id, date_preset = 'last_30d', time_increment } = req.query
   if (!account_id) return res.status(400).json({ error: 'account_id obbligatorio' })
   try {
-    const data = await metaGet(`/${account_id}/insights`, {
-      fields: 'impressions,reach,clicks,spend,actions,action_values',
-      date_preset,
-      level: 'account',
-    }, token)
+    const params = { fields: 'impressions,reach,clicks,spend,actions,action_values,date_start', date_preset, level: 'account' }
+    if (time_increment) params.time_increment = time_increment
+    const data = await metaGet(`/${account_id}/insights`, params, token)
     if (handleMetaError(data, res)) return
     res.json(data)
   } catch { res.status(502).json({ error: 'Errore di rete verso Meta' }) }

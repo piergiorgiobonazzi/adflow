@@ -1,5 +1,22 @@
 import { useState, useEffect } from 'react'
 import './App.css'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+
+function MiniChart({ data, color = '#6c63ff', height = 56 }) {
+  if (!data || data.length < 2) return <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5a5a78', fontSize: 11 }}>—</div>
+  const W = 400, H = height
+  const max = Math.max(...data), min = Math.min(...data), range = max - min || 1
+  const pts = data.map((v, i) => `${(i / (data.length - 1)) * (W - 20) + 10},${H - 6 - ((v - min) / range) * (H - 12)}`).join(' ')
+  const first = pts.split(' ')[0], last = pts.split(' ').slice(-1)[0]
+  const [lx, ly] = last.split(',')
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height }} preserveAspectRatio="none">
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={lx} cy={ly} r="4" fill={color} />
+    </svg>
+  )
+}
 
 const COLORS = ['#6c63ff','#22c55e','#f59e0b','#ef4444','#3b82f6','#ec4899','#14b8a6']
 const API = import.meta.env.VITE_API_URL || ''
@@ -60,6 +77,7 @@ function buildTargeting(form) {
   if (form.placement !== 'automatic' && PLACEMENT_MAP[form.placement]) {
     Object.assign(targeting, PLACEMENT_MAP[form.placement])
   }
+  if (form.customAudienceId) targeting.custom_audiences = [{ id: form.customAudienceId }]
   return targeting
 }
 
@@ -87,12 +105,23 @@ export default function App() {
   const [rules, setRules] = useState(getRules())
   const [availablePages, setAvailablePages] = useState([])
   const [pagesLoading, setPagesLoading] = useState(false)
+  const [audiences, setAudiences] = useState([])
+  const [audiencesLoading, setAudiencesLoading] = useState(false)
+  const [carouselCards, setCarouselCards] = useState([
+    { id: 1, imageBase64: null, imagePreview: null, title: '', url: '' },
+    { id: 2, imageBase64: null, imagePreview: null, title: '', url: '' },
+  ])
+  const [dashChartData, setDashChartData] = useState([])
+  const [selectedCampaign, setSelectedCampaign] = useState(null)
+  const [breakdownData, setBreakdownData] = useState({})
+  const [breakdownLoading, setBreakdownLoading] = useState(false)
+  const [breakdownTab, setBreakdownTab] = useState('age')
 
   const [campForm, setCampForm] = useState({
     nome:'', clienteId:'', obiettivo:'OUTCOME_TRAFFIC', formato:'image',
     etaMin:'18', etaMax:'45', genere:'0', paesi:'IT', interessi:'',
     placement:'automatic', adText:'', adHeadline:'', adDesc:'', adUrl:'',
-    adCta:'LEARN_MORE', pageId:'', budgetType:'DAILY', budget:'10',
+    adCta:'LEARN_MORE', pageId:'', customAudienceId:'', budgetType:'DAILY', budget:'10',
     startDate: new Date().toISOString().split('T')[0], startTime:'00:00',
     endDate:'', noEndDate:false, bidStrategy:'LOWEST_COST_WITHOUT_CAP',
   })
@@ -103,8 +132,20 @@ export default function App() {
 
   // ── Effects ────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (settings.token) fetchAllInsights(settings.token)
+    if (settings.token) { fetchAllInsights(settings.token); fetchDashChartData(settings.token) }
   }, [settings.token])
+
+  useEffect(() => {
+    if (!campForm.clienteId || !settings.token) { setAudiences([]); return }
+    const client = clients.find(c => c.id === campForm.clienteId)
+    if (!client?.adAccount) { setAudiences([]); return }
+    setAudiencesLoading(true)
+    fetch(`${API}/api/audiences?account_id=${client.adAccount}`, { headers: { 'x-meta-token': settings.token } })
+      .then(r => r.json())
+      .then(data => setAudiences(data.data || []))
+      .catch(() => setAudiences([]))
+      .finally(() => setAudiencesLoading(false))
+  }, [campForm.clienteId, settings.token])
 
   useEffect(() => {
     if (!campForm.clienteId || !settings.token) { setAvailablePages([]); return }
@@ -297,26 +338,55 @@ export default function App() {
       const adsetId = adsetData.id
       if (adsetData.error) notify('⚠ Ad Set: ' + adsetData.error)
 
-      // 3 — Image upload (if provided)
+      // 3 — Upload immagine / immagini carosello
+      const resolvedPageId = campForm.pageId || client.pageId
       let imageHash = null
-      if (imageBase64 && adsetId) {
+      let carouselHashes = []
+
+      if (campForm.formato === 'carousel' && adsetId) {
+        notify('3/4 Upload immagini carosello...')
+        for (const card of carouselCards) {
+          if (!card.imageBase64) { carouselHashes.push(null); continue }
+          try {
+            const imgData = await (await fetch(`${API}/api/adaccounts/${client.adAccount}/adimages`, {
+              method: 'POST', headers, body: JSON.stringify({ imageBase64: card.imageBase64, filename: `card_${card.id}.jpg` }),
+            })).json()
+            carouselHashes.push(imgData.images ? Object.values(imgData.images)[0]?.hash : null)
+          } catch { carouselHashes.push(null) }
+        }
+      } else if (imageBase64 && adsetId) {
         notify('3/4 Upload immagine creativa...')
         try {
-          const imgRes = await fetch(`${API}/api/adaccounts/${client.adAccount}/adimages`, {
-            method: 'POST', headers,
-            body: JSON.stringify({ imageBase64, filename: imageFile?.name || 'creative.jpg' }),
-          })
-          const imgData = await imgRes.json()
-          if (!imgData.error && imgData.images) {
-            imageHash = Object.values(imgData.images)[0]?.hash || null
-          }
+          const imgData = await (await fetch(`${API}/api/adaccounts/${client.adAccount}/adimages`, {
+            method: 'POST', headers, body: JSON.stringify({ imageBase64, filename: imageFile?.name || 'creative.jpg' }),
+          })).json()
+          if (!imgData.error && imgData.images) imageHash = Object.values(imgData.images)[0]?.hash || null
         } catch {}
       }
 
-      // 4 — Creative + Ad (if image, URL and page ID available)
-      const resolvedPageId = campForm.pageId || client.pageId
+      // 4 — Creative + Ad
       let adCreated = false
-      if (imageHash && campForm.adUrl && resolvedPageId && adsetId) {
+      if (campForm.formato === 'carousel' && resolvedPageId && adsetId) {
+        notify('4/4 Creazione carosello...')
+        try {
+          const child_attachments = carouselCards.map((card, i) => ({
+            link: card.url || campForm.adUrl || 'https://example.com',
+            ...(carouselHashes[i] ? { image_hash: carouselHashes[i] } : {}),
+            name: card.title || campForm.adHeadline || '',
+            call_to_action: { type: campForm.adCta },
+          }))
+          const creativeData = await (await fetch(`${API}/api/adaccounts/${client.adAccount}/adcreatives`, {
+            method: 'POST', headers, body: JSON.stringify({
+              name: campForm.nome + ' – Carousel',
+              object_story_spec: { page_id: resolvedPageId, link_data: { link: campForm.adUrl || 'https://example.com', message: campForm.adText, child_attachments, multi_share_optimized: true } },
+            }),
+          })).json()
+          if (!creativeData.error && creativeData.id) {
+            await fetch(`${API}/api/adaccounts/${client.adAccount}/ads`, { method: 'POST', headers, body: JSON.stringify({ name: campForm.nome + ' – Ad', adset_id: adsetId, creative: { creative_id: creativeData.id }, status: 'PAUSED' }) })
+            adCreated = true
+          }
+        } catch {}
+      } else if (imageHash && campForm.adUrl && resolvedPageId && adsetId) {
         notify('4/4 Creazione creative e annuncio...')
         try {
           const creativeRes = await fetch(`${API}/api/adaccounts/${client.adAccount}/adcreatives`, {
@@ -412,6 +482,71 @@ export default function App() {
     }).catch(() => {})
   }
 
+  // ── Carousel ──────────────────────────────────────────────────────────────
+  function addCarouselCard() {
+    if (carouselCards.length >= 10) { notify('Massimo 10 schede'); return }
+    setCarouselCards(cs => [...cs, { id: Date.now(), imageBase64: null, imagePreview: null, title: '', url: '' }])
+  }
+  function removeCarouselCard(id) {
+    if (carouselCards.length <= 2) { notify('Minimo 2 schede'); return }
+    setCarouselCards(cs => cs.filter(c => c.id !== id))
+  }
+  function updateCarouselCard(id, field, value) {
+    setCarouselCards(cs => cs.map(c => c.id === id ? { ...c, [field]: value } : c))
+  }
+  function handleCarouselImageSelect(id, file) {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const b64 = ev.target.result.split(',')[1]
+      setCarouselCards(cs => cs.map(c => c.id === id ? { ...c, imageBase64: b64, imagePreview: ev.target.result } : c))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // ── Chart data ─────────────────────────────────────────────────────────────
+  async function fetchDashChartData(token) {
+    const allClients = getClients().filter(c => c.adAccount)
+    if (!allClients.length) return
+    const headers = { 'x-meta-token': token }
+    const daily = {}
+    await Promise.allSettled(allClients.map(async client => {
+      try {
+        const res = await fetch(`${API}/api/insights?account_id=${client.adAccount}&date_preset=last_7d&time_increment=1`, { headers })
+        const data = await res.json()
+        for (const d of (data.data || [])) {
+          const day = d.date_start
+          if (!daily[day]) daily[day] = { spend: 0, pv: 0 }
+          daily[day].spend += parseFloat(d.spend || 0)
+          const pv = (d.action_values || []).find(a => a.action_type === 'purchase')
+          daily[day].pv += parseFloat(pv?.value || 0)
+        }
+      } catch {}
+    }))
+    const days = Object.keys(daily).sort()
+    setDashChartData(days.map(d => ({ date: d.slice(5), spend: daily[d].spend, roas: daily[d].spend > 0 ? daily[d].pv / daily[d].spend : 0 })))
+  }
+
+  // ── Breakdown ──────────────────────────────────────────────────────────────
+  async function openCampaignBreakdown(camp) {
+    setSelectedCampaign(camp)
+    setBreakdownTab('age')
+    setBreakdownData({})
+    if (!settings.token || !camp.fromMeta) return
+    setBreakdownLoading(true)
+    const headers = { 'x-meta-token': settings.token }
+    try {
+      const [ageRes, genderRes, placementRes] = await Promise.all([
+        fetch(`${API}/api/campaigns/${camp.id}/insights?date_preset=last_30d&breakdowns=age`, { headers }),
+        fetch(`${API}/api/campaigns/${camp.id}/insights?date_preset=last_30d&breakdowns=gender`, { headers }),
+        fetch(`${API}/api/campaigns/${camp.id}/insights?date_preset=last_30d&breakdowns=publisher_platform`, { headers }),
+      ])
+      const [age, gender, placement] = await Promise.all([ageRes.json(), genderRes.json(), placementRes.json()])
+      setBreakdownData({ age: age.data || [], gender: gender.data || [], placement: placement.data || [] })
+    } catch {}
+    setBreakdownLoading(false)
+  }
+
   // ── Reports ────────────────────────────────────────────────────────────────
   async function generateReport(type) {
     if (!settings.token) { notify('Configura prima il token API'); return }
@@ -452,6 +587,47 @@ export default function App() {
       a.click()
       notify('✅ Report CSV scaricato!')
     } catch { notify('❌ Errore generazione report') }
+    setReportLoading(null)
+  }
+
+  async function generatePDF(type) {
+    if (!settings.token) { notify('Configura prima il token API'); return }
+    setReportLoading(type + '_pdf')
+    const date_preset = type === 'settimanale' ? 'last_7d' : 'last_30d'
+    const period = type === 'settimanale' ? 'Ultimi 7 giorni' : 'Ultimi 30 giorni'
+    try {
+      const headers = metaHeaders()
+      const accountsData = await (await fetch(`${API}/api/adaccounts`, { headers })).json()
+      if (accountsData.error) { notify('❌ ' + accountsData.error); setReportLoading(null); return }
+      const rows = []
+      await Promise.allSettled((accountsData.data || []).map(async acc => {
+        const d = ((await (await fetch(`${API}/api/insights?account_id=${acc.id}&date_preset=${date_preset}`, { headers })).json()).data || [])[0] || {}
+        const spend = parseFloat(d.spend || 0)
+        const pv = parseFloat((d.action_values || []).find(a => a.action_type === 'purchase')?.value || 0)
+        rows.push([acc.name, `€${spend.toFixed(2)}`, String(d.impressions || 0), String(d.clicks || 0), d.ctr ? parseFloat(d.ctr).toFixed(2)+'%' : '—', spend > 0 ? (pv/spend).toFixed(2)+'x' : '—'])
+      }))
+      const doc = new jsPDF()
+      doc.setFillColor(108, 99, 255)
+      doc.rect(0, 0, 210, 28, 'F')
+      doc.setFontSize(18); doc.setTextColor(255); doc.setFont('helvetica', 'bold')
+      doc.text('AdFlow Report', 14, 17)
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal')
+      doc.text(`${period} · ${new Date().toLocaleDateString('it-IT')}`, 14, 23)
+      if (settings.agencyName) doc.text(settings.agencyName, 196, 17, { align: 'right' })
+      const totalSpend = rows.reduce((s, r) => s + parseFloat(r[1].replace('€','') || 0), 0)
+      doc.setTextColor(50); doc.setFontSize(10)
+      doc.text(`Spesa totale: €${totalSpend.toFixed(2)}  ·  Account: ${rows.length}`, 14, 36)
+      autoTable(doc, {
+        startY: 42,
+        head: [['Account', 'Spesa', 'Impression', 'Click', 'CTR', 'ROAS']],
+        body: rows,
+        headStyles: { fillColor: [108, 99, 255] },
+        alternateRowStyles: { fillColor: [245, 245, 255] },
+        styles: { fontSize: 9 },
+      })
+      doc.save(`adflow-report-${type}-${new Date().toISOString().split('T')[0]}.pdf`)
+      notify('✅ Report PDF generato!')
+    } catch (e) { notify('❌ Errore PDF: ' + e.message) }
     setReportLoading(null)
   }
 
@@ -603,6 +779,27 @@ export default function App() {
                   </div>
                 ))}
               </div>
+              {dashChartData.length > 1 && (
+                <div style={{background:'#111118',border:'1px solid #2a2a38',borderRadius:12,padding:20,marginBottom:16}}>
+                  <div style={{fontSize:13,fontWeight:600,marginBottom:12}}>Andamento ultimi 7 giorni</div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+                    <div>
+                      <div style={{fontSize:11,color:'#5a5a78',marginBottom:4}}>SPESA (€)</div>
+                      <MiniChart data={dashChartData.map(d=>d.spend)} color="#6c63ff" height={56} />
+                      <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'#5a5a78',marginTop:2}}>
+                        <span>{dashChartData[0]?.date}</span><span>{dashChartData.slice(-1)[0]?.date}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{fontSize:11,color:'#5a5a78',marginBottom:4}}>ROAS</div>
+                      <MiniChart data={dashChartData.map(d=>d.roas)} color="#22c55e" height={56} />
+                      <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'#5a5a78',marginTop:2}}>
+                        <span>{dashChartData[0]?.date}</span><span>{dashChartData.slice(-1)[0]?.date}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div style={{background:'#111118',border:'1px solid #2a2a38',borderRadius:12,padding:20}}>
                 <div style={{fontSize:14,fontWeight:600,marginBottom:16}}>Come iniziare</div>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16}}>
@@ -671,7 +868,7 @@ export default function App() {
                   <tbody>{campagne.map(c => (
                     <tr key={c.id} style={{borderBottom:'1px solid #1a1a24'}}>
                       <td style={{padding:'12px 16px',fontSize:13,fontWeight:500}}>
-                        {c.nome}
+                        <span onClick={()=>openCampaignBreakdown(c)} style={{cursor:'pointer',color:'#c0bcff',textDecoration:'underline',textDecorationStyle:'dotted'}}>{c.nome}</span>
                         {c.hasAd && <span style={{marginLeft:6,fontSize:10,color:'#22c55e',background:'rgba(34,197,94,.1)',padding:'1px 5px',borderRadius:4}}>completa</span>}
                         {c.hasAdSet && !c.hasAd && <span style={{marginLeft:6,fontSize:10,color:'#fbbf24',background:'rgba(245,158,11,.1)',padding:'1px 5px',borderRadius:4}}>no annuncio</span>}
                       </td>
@@ -744,6 +941,26 @@ export default function App() {
                 {step===2 && (
                   <div>
                     <div style={{fontSize:14,fontWeight:600,marginBottom:16}}>Definisci il Pubblico</div>
+
+                    {/* Custom audiences */}
+                    <div style={{marginBottom:16,padding:14,background:'#0d0d14',border:'1px solid #2a2a38',borderRadius:10}}>
+                      <div style={{fontSize:12,fontWeight:600,color:'#8b85ff',marginBottom:10}}>Pubblici Salvati</div>
+                      {audiencesLoading ? (
+                        <div style={{fontSize:12,color:'#5a5a78'}}>⏳ Caricamento pubblici…</div>
+                      ) : audiences.length > 0 ? (
+                        <>
+                          <select value={campForm.customAudienceId} onChange={e=>setCampForm({...campForm,customAudienceId:e.target.value})} style={inputStyle}>
+                            <option value="">— Nessun pubblico salvato (usa targeting manuale) —</option>
+                            {audiences.map(a => <option key={a.id} value={a.id}>{a.name} {a.subtype?`· ${a.subtype}`:''} {a.approximate_count_lower_bound?`(~${Number(a.approximate_count_lower_bound).toLocaleString()})`:''}</option>)}
+                          </select>
+                          <div style={{...helpText,marginTop:6}}>Se selezioni un pubblico salvato, sovrascrive le impostazioni di età/paese/interessi.</div>
+                        </>
+                      ) : (
+                        <div style={{fontSize:12,color:'#5a5a78'}}>{campForm.clienteId ? 'Nessun pubblico personalizzato trovato per questo account.' : 'Seleziona un cliente nello Step 1 per caricare i pubblici.'}</div>
+                      )}
+                    </div>
+
+                    <div style={{fontSize:12,color:'#9090b0',marginBottom:10}}>— oppure targeting manuale —</div>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                       {[{label:'Età minima',key:'etaMin',type:'number'},{label:'Età massima',key:'etaMax',type:'number'},{label:'Paesi (es. IT,DE)',key:'paesi',type:'text'},{label:'Interessi',key:'interessi',type:'text'}].map(f => (
                         <div key={f.key}>
@@ -786,6 +1003,33 @@ export default function App() {
                         </div>
                       ))}
                     </div>
+
+                    {/* Carousel builder */}
+                    {campForm.formato === 'carousel' && (
+                      <div style={{marginBottom:16}}>
+                        <div style={{fontSize:13,fontWeight:600,marginBottom:10,color:'#e0e0f0'}}>Schede Carosello <span style={{fontSize:11,color:'#5a5a78'}}>({carouselCards.length}/10)</span></div>
+                        {carouselCards.map((card, idx) => (
+                          <div key={card.id} style={{background:'#0d0d14',border:'1px solid #2a2a38',borderRadius:8,padding:12,marginBottom:8}}>
+                            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+                              <span style={{fontSize:11,color:'#5a5a78',fontWeight:600}}>Scheda {idx+1}</span>
+                              <button onClick={()=>removeCarouselCard(card.id)} style={{...btnDanger,padding:'2px 7px',fontSize:10}}>✕</button>
+                            </div>
+                            <div style={{display:'grid',gridTemplateColumns:'80px 1fr 1fr',gap:8,alignItems:'start'}}>
+                              <label style={{display:'block',cursor:'pointer'}}>
+                                {card.imagePreview
+                                  ? <img src={card.imagePreview} style={{width:80,height:60,objectFit:'cover',borderRadius:6,display:'block'}} />
+                                  : <div style={{width:80,height:60,background:'#1a1a24',border:'1px dashed #3a3a5e',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,color:'#5a5a78'}}>+</div>
+                                }
+                                <input type="file" accept="image/*" style={{display:'none'}} onChange={e=>handleCarouselImageSelect(card.id, e.target.files?.[0])} />
+                              </label>
+                              <input value={card.title} onChange={e=>updateCarouselCard(card.id,'title',e.target.value)} placeholder="Titolo scheda" style={{...inputStyle,fontSize:12}} />
+                              <input value={card.url} onChange={e=>updateCarouselCard(card.id,'url',e.target.value)} placeholder="URL scheda" style={{...inputStyle,fontSize:12}} />
+                            </div>
+                          </div>
+                        ))}
+                        <button onClick={addCarouselCard} style={{...btnSecondary,fontSize:12,width:'100%',marginTop:4}}>+ Aggiungi scheda</button>
+                      </div>
+                    )}
 
                     {/* Page selector */}
                     <div style={{marginBottom:16}}>
@@ -927,6 +1171,8 @@ export default function App() {
                     { id:'ig_feed',   label:'Feed Instagram',      icon:'◻' },
                   ]
 
+                  const isCarousel = campForm.formato === 'carousel'
+
                   const FbFeedPreview = () => (
                     <div style={{background:'#fff',borderRadius:10,overflow:'hidden',width:360,boxShadow:'0 2px 16px rgba(0,0,0,.45)',color:'#1c1e21',fontFamily:'Helvetica Neue,Arial,sans-serif'}}>
                       <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 12px'}}>
@@ -938,18 +1184,31 @@ export default function App() {
                         <div style={{fontSize:18,color:'#65676b',letterSpacing:2}}>···</div>
                       </div>
                       <div style={{padding:'0 12px 10px',fontSize:13,color:'#050505',lineHeight:1.5}}>{adText || ph('Testo principale dell\'annuncio…')}</div>
-                      {imagePreview
-                        ? <img src={imagePreview} alt="ad" style={{width:'100%',height:300,objectFit:'cover',display:'block'}} />
-                        : <div style={{height:300,background:'#e4e6ea',display:'flex',alignItems:'center',justifyContent:'center',fontSize:32,color:'#bec3c9'}}>🖼️</div>
-                      }
-                      <div style={{background:'#f0f2f5',padding:'8px 12px',display:'flex',alignItems:'center',gap:8}}>
-                        <div style={{flex:1,minWidth:0}}>
-                          {displayUrl ? <div style={{fontSize:11,color:'#65676b',marginBottom:1,textTransform:'uppercase',letterSpacing:.3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{displayUrl}</div> : ph('TUOSITO.COM')}
-                          <div style={{fontSize:13,fontWeight:700,color:'#050505',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{headline || ph('Headline dell\'annuncio')}</div>
-                          {adDesc && <div style={{fontSize:12,color:'#65676b',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{adDesc}</div>}
+                      {isCarousel ? (
+                        <div style={{display:'flex',overflowX:'auto',gap:0,borderTop:'1px solid #e4e6eb'}}>
+                          {carouselCards.map((card,i) => (
+                            <div key={card.id} style={{flexShrink:0,width:160,borderRight:'1px solid #e4e6eb'}}>
+                              {card.imagePreview ? <img src={card.imagePreview} style={{width:'100%',height:160,objectFit:'cover',display:'block'}} /> : <div style={{height:160,background:'#e4e6ea',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,color:'#bec3c9'}}>🖼️</div>}
+                              <div style={{background:'#f0f2f5',padding:'6px 8px'}}>
+                                <div style={{fontSize:12,fontWeight:700,color:'#050505',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{card.title || ph(`Card ${i+1}`)}</div>
+                                <button style={{marginTop:4,padding:'4px 8px',background:'#e4e6ea',border:'none',borderRadius:4,fontSize:10,fontWeight:600,color:'#050505',cursor:'default',width:'100%'}}>{ctaLabel}</button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        <button style={{padding:'6px 10px',background:'#e4e6ea',border:'none',borderRadius:6,fontSize:12,fontWeight:600,color:'#050505',cursor:'default',flexShrink:0,whiteSpace:'nowrap'}}>{ctaLabel}</button>
-                      </div>
+                      ) : (
+                        <>
+                          {imagePreview ? <img src={imagePreview} alt="ad" style={{width:'100%',height:300,objectFit:'cover',display:'block'}} /> : <div style={{height:300,background:'#e4e6ea',display:'flex',alignItems:'center',justifyContent:'center',fontSize:32,color:'#bec3c9'}}>🖼️</div>}
+                          <div style={{background:'#f0f2f5',padding:'8px 12px',display:'flex',alignItems:'center',gap:8}}>
+                            <div style={{flex:1,minWidth:0}}>
+                              {displayUrl ? <div style={{fontSize:11,color:'#65676b',marginBottom:1,textTransform:'uppercase',letterSpacing:.3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{displayUrl}</div> : ph('TUOSITO.COM')}
+                              <div style={{fontSize:13,fontWeight:700,color:'#050505',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{headline || ph('Headline dell\'annuncio')}</div>
+                              {adDesc && <div style={{fontSize:12,color:'#65676b',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{adDesc}</div>}
+                            </div>
+                            <button style={{padding:'6px 10px',background:'#e4e6ea',border:'none',borderRadius:6,fontSize:12,fontWeight:600,color:'#050505',cursor:'default',flexShrink:0,whiteSpace:'nowrap'}}>{ctaLabel}</button>
+                          </div>
+                        </>
+                      )}
                       <div style={{padding:'6px 12px',borderTop:'1px solid #e4e6eb',display:'flex',gap:14,fontSize:12,color:'#65676b'}}>
                         <span>👍 Mi piace</span><span>💬 Commenta</span><span>↗ Condividi</span>
                       </div>
@@ -1105,13 +1364,14 @@ export default function App() {
                   <div key={r.t} style={{background:'#111118',border:'1px solid #2a2a38',borderRadius:12,padding:16}}>
                     <div style={{fontSize:14,fontWeight:600,marginBottom:6}}>{r.t}</div>
                     <div style={{fontSize:12,color:'#5a5a78',marginBottom:12}}>{r.d}</div>
-                    <button
-                      onClick={() => generateReport(r.type)}
-                      disabled={!!reportLoading}
-                      style={{...btnSecondary,width:'100%',padding:'7px',opacity:reportLoading===r.type?.6:1}}
-                    >
-                      {reportLoading===r.type ? '⏳ Generazione...' : '⬇ Genera CSV'}
-                    </button>
+                    <div style={{display:'flex',gap:6}}>
+                      <button onClick={() => generateReport(r.type)} disabled={!!reportLoading} style={{...btnSecondary,flex:1,padding:'7px',fontSize:11,opacity:reportLoading===r.type?.6:1}}>
+                        {reportLoading===r.type ? '⏳...' : '⬇ CSV'}
+                      </button>
+                      <button onClick={() => generatePDF(r.type)} disabled={!!reportLoading} style={{...btnPrimary,flex:1,padding:'7px',fontSize:11,opacity:reportLoading===r.type+'_pdf'?.6:1}}>
+                        {reportLoading===r.type+'_pdf' ? '⏳...' : '📄 PDF'}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1260,6 +1520,58 @@ export default function App() {
               <button onClick={()=>setModalRule(false)} style={btnSecondary}>Annulla</button>
               <button onClick={saveRule} style={btnPrimary}>Aggiungi</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL BREAKDOWN CAMPAGNA ─────────────────────────────────────── */}
+      {selectedCampaign && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.75)',zIndex:100,display:'flex',alignItems:'center',justifyContent:'center'}} onClick={()=>setSelectedCampaign(null)}>
+          <div style={{background:'#111118',border:'1px solid #3a3a4e',borderRadius:16,padding:24,width:580,maxWidth:'95vw',maxHeight:'85vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+              <div>
+                <div style={{fontFamily:'Syne,sans-serif',fontSize:15,fontWeight:700}}>{selectedCampaign.nome}</div>
+                <div style={{fontSize:11,color:'#5a5a78',marginTop:2}}>{selectedCampaign.clienteName} · {selectedCampaign.obiettivo?.replace('OUTCOME_','')}</div>
+              </div>
+              <button onClick={()=>setSelectedCampaign(null)} style={{background:'none',border:'none',color:'#5a5a78',cursor:'pointer',fontSize:18}}>✕</button>
+            </div>
+
+            {!selectedCampaign.fromMeta ? (
+              <div style={{color:'#5a5a78',fontSize:13}}>Breakdown disponibile solo per campagne sincronizzate da Meta.</div>
+            ) : breakdownLoading ? (
+              <div style={{color:'#5a5a78',fontSize:13,padding:'20px 0',textAlign:'center'}}>⏳ Caricamento breakdown...</div>
+            ) : (
+              <>
+                {/* Tabs */}
+                <div style={{display:'flex',gap:4,marginBottom:16,background:'#0a0a0f',padding:3,borderRadius:8,width:'fit-content'}}>
+                  {[{id:'age',l:'Età'},{id:'gender',l:'Sesso'},{id:'placement',l:'Placement'}].map(t=>(
+                    <button key={t.id} onClick={()=>setBreakdownTab(t.id)} style={{padding:'5px 14px',borderRadius:6,border:'none',fontSize:11,fontWeight:600,cursor:'pointer',background:breakdownTab===t.id?'#2a2a38':'transparent',color:breakdownTab===t.id?'#c0bcff':'#5a5a78'}}>
+                      {t.l}
+                    </button>
+                  ))}
+                </div>
+                {/* Table */}
+                {(() => {
+                  const rows = breakdownData[breakdownTab] || []
+                  if (!rows.length) return <div style={{color:'#5a5a78',fontSize:12}}>Nessun dato disponibile.</div>
+                  const keyLabel = breakdownTab === 'age' ? 'age' : breakdownTab === 'gender' ? 'gender' : 'publisher_platform'
+                  return (
+                    <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+                      <thead><tr>{[breakdownTab==='age'?'Fascia età':breakdownTab==='gender'?'Sesso':'Placement','Spesa','Impression','Click','CTR'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',color:'#5a5a78',fontSize:11,borderBottom:'1px solid #2a2a38'}}>{h}</th>)}</tr></thead>
+                      <tbody>{rows.map((r,i)=>(
+                        <tr key={i} style={{borderBottom:'1px solid #1a1a24'}}>
+                          <td style={{padding:'7px 8px',fontWeight:500}}>{r[keyLabel] || '—'}</td>
+                          <td style={{padding:'7px 8px',color:'#9090b0'}}>€{parseFloat(r.spend||0).toFixed(2)}</td>
+                          <td style={{padding:'7px 8px',color:'#9090b0'}}>{r.impressions||0}</td>
+                          <td style={{padding:'7px 8px',color:'#9090b0'}}>{r.clicks||0}</td>
+                          <td style={{padding:'7px 8px',color:'#9090b0'}}>{r.ctr?parseFloat(r.ctr).toFixed(2)+'%':'—'}</td>
+                        </tr>
+                      ))}</tbody>
+                    </table>
+                  )
+                })()}
+              </>
+            )}
           </div>
         </div>
       )}
