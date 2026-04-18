@@ -65,6 +65,23 @@ function getRules() {
 }
 function saveRules(r) { localStorage.setItem('adflow_rules', JSON.stringify(r)) }
 
+const DRAFT_KEY = 'adflow_camp_draft'
+function getDraft() { try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null') } catch { return null } }
+function clearDraftStorage() { localStorage.removeItem(DRAFT_KEY) }
+
+const DEFAULT_CAMP_FORM = {
+  nome:'', clienteId:'', obiettivo:'OUTCOME_TRAFFIC', formato:'image',
+  etaMin:'18', etaMax:'45', genere:'0', paesi:'IT', interessi:'',
+  placement:'automatic', adText:'', adHeadline:'', adDesc:'', adUrl:'',
+  adCta:'LEARN_MORE', pageId:'', customAudienceId:'', budgetType:'DAILY', budget:'10',
+  startDate: '', startTime:'00:00',
+  endDate:'', noEndDate:false, bidStrategy:'LOWEST_COST_WITHOUT_CAP',
+}
+const DEFAULT_CAROUSEL = [
+  { id: 1, imageBase64: null, imagePreview: null, title: '', url: '' },
+  { id: 2, imageBase64: null, imagePreview: null, title: '', url: '' },
+]
+
 function buildTargeting(form) {
   const countries = form.paesi.split(',').map(s => s.trim().toUpperCase()).filter(Boolean)
   const targeting = {
@@ -107,23 +124,24 @@ export default function App() {
   const [pagesLoading, setPagesLoading] = useState(false)
   const [audiences, setAudiences] = useState([])
   const [audiencesLoading, setAudiencesLoading] = useState(false)
-  const [carouselCards, setCarouselCards] = useState([
-    { id: 1, imageBase64: null, imagePreview: null, title: '', url: '' },
-    { id: 2, imageBase64: null, imagePreview: null, title: '', url: '' },
-  ])
+  const [carouselCards, setCarouselCards] = useState(() => {
+    const d = getDraft()
+    return d?.cards?.map(c => ({ ...c, imageBase64: null, imagePreview: null })) || DEFAULT_CAROUSEL
+  })
   const [dashChartData, setDashChartData] = useState([])
   const [selectedCampaign, setSelectedCampaign] = useState(null)
   const [breakdownData, setBreakdownData] = useState({})
   const [breakdownLoading, setBreakdownLoading] = useState(false)
   const [breakdownTab, setBreakdownTab] = useState('age')
 
-  const [campForm, setCampForm] = useState({
-    nome:'', clienteId:'', obiettivo:'OUTCOME_TRAFFIC', formato:'image',
-    etaMin:'18', etaMax:'45', genere:'0', paesi:'IT', interessi:'',
-    placement:'automatic', adText:'', adHeadline:'', adDesc:'', adUrl:'',
-    adCta:'LEARN_MORE', pageId:'', customAudienceId:'', budgetType:'DAILY', budget:'10',
-    startDate: new Date().toISOString().split('T')[0], startTime:'00:00',
-    endDate:'', noEndDate:false, bidStrategy:'LOWEST_COST_WITHOUT_CAP',
+  const [campForm, setCampForm] = useState(() => {
+    const d = getDraft()
+    if (d?.form?.nome) return d.form
+    return { ...DEFAULT_CAMP_FORM, startDate: new Date().toISOString().split('T')[0] }
+  })
+  const [hasDraft] = useState(() => {
+    const d = getDraft()
+    return !!(d?.form?.nome)
   })
 
   const [clientForm, setClientForm] = useState({ name:'', adAccount:'', pageId:'', sector:'E-commerce', notes:'' })
@@ -134,6 +152,16 @@ export default function App() {
   useEffect(() => {
     if (settings.token) { fetchAllInsights(settings.token); fetchDashChartData(settings.token) }
   }, [settings.token])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        form: campForm,
+        cards: carouselCards.map(({ id, title, url }) => ({ id, title, url })),
+        savedAt: new Date().toISOString(),
+      }))
+    } catch {}
+  }, [campForm, carouselCards])
 
   useEffect(() => {
     if (!campForm.clienteId || !settings.token) { setAudiences([]); return }
@@ -169,6 +197,15 @@ export default function App() {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   function notify(msg) { setNotif(msg); setShowNotif(true); setTimeout(() => setShowNotif(false), 3500) }
+
+  function clearDraft() {
+    clearDraftStorage()
+    setCampForm({ ...DEFAULT_CAMP_FORM, startDate: new Date().toISOString().split('T')[0] })
+    setCarouselCards(DEFAULT_CAROUSEL.map(c => ({ ...c })))
+    setImageFile(null); setImageBase64(null); setImagePreview(null)
+    setStep(1)
+    notify('Bozza cancellata')
+  }
 
   function metaHeaders() {
     const token = settForm.token || settings.token
@@ -434,7 +471,10 @@ export default function App() {
           ? '✅ Campagna + Ad Set creati. Aggiungi un\'immagine per completare l\'annuncio.'
           : '✅ Campagna creata su Meta!'
       notify(msg)
+      clearDraftStorage()
       setImageFile(null); setImageBase64(null); setImagePreview(null)
+      setCampForm({ ...DEFAULT_CAMP_FORM, startDate: new Date().toISOString().split('T')[0] })
+      setCarouselCards(DEFAULT_CAROUSEL.map(c => ({ ...c })))
       setTimeout(() => setPage('campagne'), 1800)
     } catch {
       notify('❌ Errore durante la creazione')
@@ -895,6 +935,18 @@ export default function App() {
           {/* ── CREA CAMPAGNA ─────────────────────────────────────────────── */}
           {page==='crea' && (
             <div>
+              {/* Draft banner */}
+              {hasDraft && campForm.nome && (
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.25)',borderRadius:8,marginBottom:16,fontSize:12}}>
+                  <span style={{color:'#fbbf24'}}>⚡ Bozza ripristinata — continui da dove ti eri fermato.</span>
+                  <button onClick={clearDraft} style={{...btnDanger,padding:'3px 10px',fontSize:11}}>✕ Cancella bozza</button>
+                </div>
+              )}
+              {/* Auto-save indicator + clear button */}
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
+                <div style={{fontSize:11,color:'#3a3a58'}}>💾 Salvato automaticamente</div>
+                {campForm.nome && <button onClick={clearDraft} style={{...btnSecondary,padding:'4px 10px',fontSize:11,color:'#5a5a78'}}>✕ Cancella bozza</button>}
+              </div>
               {/* Stepper */}
               <div style={{display:'flex',alignItems:'center',gap:0,marginBottom:28}}>
                 {[1,2,3,4,5].map((s,i) => (
