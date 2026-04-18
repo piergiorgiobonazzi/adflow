@@ -77,6 +77,7 @@ export default function App() {
   const [tokenVisible, setTokenVisible] = useState(false)
   const [connStatus, setConnStatus] = useState('')
   const [launching, setLaunching] = useState(false)
+  const [previewFormat, setPreviewFormat] = useState('fb_feed')
   const [imageFile, setImageFile] = useState(null)
   const [imageBase64, setImageBase64] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
@@ -858,6 +859,106 @@ export default function App() {
                   const adClient = clients.find(c=>c.id===campForm.clienteId)
                   const pageName = adClient?.name || campForm.nome || 'La tua Pagina'
                   const displayUrl = campForm.adUrl ? campForm.adUrl.replace(/^https?:\/\//,'').split('/')[0].toUpperCase() : ''
+                  const adText    = campForm.adText     || null
+                  const headline  = campForm.adHeadline || null
+                  const adDesc    = campForm.adDesc     || null
+                  const ctaLabel  = ctaLabels[campForm.adCta] || 'Scopri di più'
+                  const ph = (txt) => <span style={{color:'#bec3c9',fontStyle:'italic'}}>{txt}</span>
+                  const fmtTabs = [
+                    { id:'fb_feed',   label:'Feed Facebook',      icon:'f' },
+                    { id:'ig_stories',label:'Stories Instagram',   icon:'▲' },
+                    { id:'ig_feed',   label:'Feed Instagram',      icon:'◻' },
+                  ]
+
+                  const FbFeedPreview = () => (
+                    <div style={{background:'#fff',borderRadius:10,overflow:'hidden',width:360,boxShadow:'0 2px 16px rgba(0,0,0,.45)',color:'#1c1e21',fontFamily:'Helvetica Neue,Arial,sans-serif'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 12px'}}>
+                        <div style={{width:36,height:36,borderRadius:'50%',background:'#1877f2',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontSize:13,fontWeight:700,flexShrink:0}}>{pageName.charAt(0).toUpperCase()}</div>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:13,fontWeight:700,color:'#050505'}}>{pageName}</div>
+                          <div style={{fontSize:11,color:'#65676b'}}>Sponsorizzato · 🌐</div>
+                        </div>
+                        <div style={{fontSize:18,color:'#65676b',letterSpacing:2}}>···</div>
+                      </div>
+                      <div style={{padding:'0 12px 10px',fontSize:13,color:'#050505',lineHeight:1.5}}>{adText || ph('Testo principale dell\'annuncio…')}</div>
+                      {imagePreview
+                        ? <img src={imagePreview} alt="ad" style={{width:'100%',height:300,objectFit:'cover',display:'block'}} />
+                        : <div style={{height:300,background:'#e4e6ea',display:'flex',alignItems:'center',justifyContent:'center',fontSize:32,color:'#bec3c9'}}>🖼️</div>
+                      }
+                      <div style={{background:'#f0f2f5',padding:'8px 12px',display:'flex',alignItems:'center',gap:8}}>
+                        <div style={{flex:1,minWidth:0}}>
+                          {displayUrl ? <div style={{fontSize:11,color:'#65676b',marginBottom:1,textTransform:'uppercase',letterSpacing:.3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{displayUrl}</div> : ph('TUOSITO.COM')}
+                          <div style={{fontSize:13,fontWeight:700,color:'#050505',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{headline || ph('Headline dell\'annuncio')}</div>
+                          {adDesc && <div style={{fontSize:12,color:'#65676b',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{adDesc}</div>}
+                        </div>
+                        <button style={{padding:'6px 10px',background:'#e4e6ea',border:'none',borderRadius:6,fontSize:12,fontWeight:600,color:'#050505',cursor:'default',flexShrink:0,whiteSpace:'nowrap'}}>{ctaLabel}</button>
+                      </div>
+                      <div style={{padding:'6px 12px',borderTop:'1px solid #e4e6eb',display:'flex',gap:14,fontSize:12,color:'#65676b'}}>
+                        <span>👍 Mi piace</span><span>💬 Commenta</span><span>↗ Condividi</span>
+                      </div>
+                    </div>
+                  )
+
+                  const IgStoriesPreview = () => (
+                    <div style={{background:'#000',borderRadius:14,overflow:'hidden',width:220,height:390,position:'relative',boxShadow:'0 2px 16px rgba(0,0,0,.55)',fontFamily:'system-ui,-apple-system,sans-serif'}}>
+                      {imagePreview
+                        ? <img src={imagePreview} alt="ad" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}} />
+                        : <div style={{position:'absolute',inset:0,background:'linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:36}}>🖼️</div>
+                      }
+                      <div style={{position:'absolute',inset:0,background:'linear-gradient(to bottom,rgba(0,0,0,.35) 0%,transparent 30%,transparent 60%,rgba(0,0,0,.55) 100%)'}} />
+                      {/* Top bar */}
+                      <div style={{position:'absolute',top:0,left:0,right:0,padding:'10px 10px 6px',display:'flex',alignItems:'center',gap:7}}>
+                        <div style={{flex:1,height:2,background:'rgba(255,255,255,.5)',borderRadius:2}} />
+                        <div style={{width:26,height:26,borderRadius:'50%',background:'#833ab4',border:'1.5px solid #fff',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontSize:9,fontWeight:700,flexShrink:0}}>{pageName.charAt(0).toUpperCase()}</div>
+                        <div style={{fontSize:10,fontWeight:600,color:'white',flex:1}}>{pageName}</div>
+                        <div style={{fontSize:9,color:'rgba(255,255,255,.7)'}}>Sponsorizzato</div>
+                        <div style={{color:'rgba(255,255,255,.8)',fontSize:14}}>✕</div>
+                      </div>
+                      {/* Bottom CTA */}
+                      <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'0 12px 16px',textAlign:'center'}}>
+                        {adText && <div style={{fontSize:11,color:'white',textShadow:'0 1px 3px rgba(0,0,0,.6)',marginBottom:8,lineHeight:1.4}}>{adText}</div>}
+                        <div style={{background:'white',borderRadius:20,padding:'7px 16px',display:'inline-block',fontSize:12,fontWeight:700,color:'#1c1e21',cursor:'default'}}>
+                          ↑ {ctaLabel}
+                        </div>
+                      </div>
+                    </div>
+                  )
+
+                  const IgFeedPreview = () => (
+                    <div style={{background:'#fff',borderRadius:10,overflow:'hidden',width:320,boxShadow:'0 2px 16px rgba(0,0,0,.45)',color:'#262626',fontFamily:'system-ui,-apple-system,sans-serif'}}>
+                      {/* Instagram header */}
+                      <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 10px'}}>
+                        <div style={{width:30,height:30,borderRadius:'50%',background:'linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)',padding:1.5,flexShrink:0}}>
+                          <div style={{width:'100%',height:'100%',borderRadius:'50%',background:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:'#262626'}}>{pageName.charAt(0).toUpperCase()}</div>
+                        </div>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:12,fontWeight:700,color:'#262626'}}>{pageName}</div>
+                          <div style={{fontSize:10,color:'#8e8e8e'}}>Sponsorizzato</div>
+                        </div>
+                        <div style={{fontSize:16,color:'#262626',letterSpacing:2}}>···</div>
+                      </div>
+                      {/* Square image */}
+                      {imagePreview
+                        ? <img src={imagePreview} alt="ad" style={{width:'100%',height:320,objectFit:'cover',display:'block'}} />
+                        : <div style={{height:320,background:'#efefef',display:'flex',alignItems:'center',justifyContent:'center',fontSize:36,color:'#c7c7c7'}}>🖼️</div>
+                      }
+                      {/* IG actions */}
+                      <div style={{padding:'8px 10px 4px',display:'flex',gap:12,fontSize:18}}>
+                        <span>🤍</span><span>💬</span><span style={{marginLeft:'auto'}}>🔖</span>
+                      </div>
+                      <div style={{padding:'0 10px 6px',fontSize:12,color:'#262626',lineHeight:1.5}}>
+                        <strong>{pageName}</strong> {adText || ph('Testo principale dell\'annuncio…')}
+                      </div>
+                      <div style={{margin:'0 10px 8px',background:'#efefef',borderRadius:6,padding:'7px 10px',display:'flex',alignItems:'center',gap:8}}>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:11,color:'#8e8e8e',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{displayUrl || ph('tuosito.com')}</div>
+                          <div style={{fontSize:12,fontWeight:700,color:'#262626',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{headline || ph('Headline annuncio')}</div>
+                        </div>
+                        <button style={{padding:'5px 9px',background:'#0095f6',border:'none',borderRadius:6,fontSize:11,fontWeight:700,color:'white',cursor:'default',flexShrink:0,whiteSpace:'nowrap'}}>{ctaLabel}</button>
+                      </div>
+                    </div>
+                  )
+
                   return (
                   <div>
                     <div style={{fontSize:14,fontWeight:600,marginBottom:16}}>Riepilogo e Lancio</div>
@@ -868,53 +969,31 @@ export default function App() {
                         {l:'Campagna',  v:campForm.nome||'—'},
                         {l:'Cliente',   v:adClient?.name||'—'},
                         {l:'Obiettivo', v:campForm.obiettivo.replace('OUTCOME_','')},
-                        {l:'Formato',   v:campForm.formato},
                         {l:'Budget',    v:'€'+campForm.budget+(campForm.budgetType==='DAILY'?'/giorno':' totale')},
                         {l:'Paesi',     v:campForm.paesi},
                         {l:'Età',       v:campForm.etaMin+'-'+campForm.etaMax+' anni'},
                         {l:'Inizio',    v:campForm.startDate+(campForm.startTime?' '+campForm.startTime:'')},
+                        {l:'Fine',      v:campForm.noEndDate?'Nessuna':campForm.endDate||'—'},
                       ].map(r=>(
                         <div key={r.l}><div style={{fontSize:11,color:'#5a5a78',marginBottom:4}}>{r.l.toUpperCase()}</div><div style={{fontWeight:500,fontSize:13}}>{r.v}</div></div>
                       ))}
                     </div>
 
-                    {/* Facebook feed mock */}
-                    {(imagePreview || campForm.adHeadline || campForm.adText) && (
-                      <div style={{marginBottom:16}}>
-                        <div style={{fontSize:11,color:'#5a5a78',marginBottom:8,textTransform:'uppercase',letterSpacing:.5}}>Preview Inserzione — Feed Facebook</div>
-                        <div style={{background:'#fff',borderRadius:10,overflow:'hidden',maxWidth:400,boxShadow:'0 2px 12px rgba(0,0,0,.4)',color:'#1c1e21',fontFamily:'Helvetica Neue,Arial,sans-serif'}}>
-                          {/* Header */}
-                          <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 12px'}}>
-                            <div style={{width:36,height:36,borderRadius:'50%',background:'#1877f2',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontSize:13,fontWeight:700,flexShrink:0}}>{pageName.charAt(0).toUpperCase()}</div>
-                            <div style={{flex:1}}>
-                              <div style={{fontSize:13,fontWeight:600,color:'#1c1e21'}}>{pageName}</div>
-                              <div style={{fontSize:11,color:'#606770',display:'flex',alignItems:'center',gap:4}}>Sponsorizzato · <span style={{fontSize:10}}>🌐</span></div>
-                            </div>
-                            <div style={{fontSize:20,color:'#606770',lineHeight:1}}>···</div>
-                          </div>
-                          {/* Ad text */}
-                          {campForm.adText && <div style={{padding:'0 12px 10px',fontSize:13,color:'#1c1e21',lineHeight:1.5}}>{campForm.adText}</div>}
-                          {/* Image */}
-                          {imagePreview
-                            ? <img src={imagePreview} alt="ad" style={{width:'100%',maxHeight:210,objectFit:'cover',display:'block'}} />
-                            : <div style={{height:130,background:'#e4e6ea',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,color:'#bec3c9'}}>🖼️</div>
-                          }
-                          {/* Link bar */}
-                          <div style={{background:'#f0f2f5',padding:'8px 12px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                            <div style={{flex:1,minWidth:0}}>
-                              {displayUrl && <div style={{fontSize:11,color:'#606770',marginBottom:2,textTransform:'uppercase',letterSpacing:.3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{displayUrl}</div>}
-                              <div style={{fontSize:13,fontWeight:600,color:'#1c1e21',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{campForm.adHeadline||campForm.nome||'Titolo annuncio'}</div>
-                              {campForm.adDesc && <div style={{fontSize:12,color:'#606770',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{campForm.adDesc}</div>}
-                            </div>
-                            <button style={{marginLeft:8,padding:'6px 12px',background:'#e4e6ea',border:'none',borderRadius:6,fontSize:12,fontWeight:600,color:'#1c1e21',cursor:'default',flexShrink:0,whiteSpace:'nowrap'}}>{ctaLabels[campForm.adCta]||'Scopri di più'}</button>
-                          </div>
-                          {/* Reactions bar */}
-                          <div style={{padding:'6px 12px',borderTop:'1px solid #e4e6ea',display:'flex',gap:16,fontSize:12,color:'#606770'}}>
-                            <span>👍 Mi piace</span><span>💬 Commenta</span><span>↗ Condividi</span>
-                          </div>
-                        </div>
+                    {/* Format tabs + preview */}
+                    <div style={{marginBottom:16}}>
+                      <div style={{fontSize:11,color:'#5a5a78',marginBottom:8,textTransform:'uppercase',letterSpacing:.5}}>Preview Inserzione</div>
+                      {/* Tab selector */}
+                      <div style={{display:'flex',gap:4,marginBottom:14,background:'#0a0a0f',padding:3,borderRadius:8,width:'fit-content'}}>
+                        {fmtTabs.map(t => (
+                          <button key={t.id} onClick={()=>setPreviewFormat(t.id)} style={{padding:'5px 12px',borderRadius:6,border:'none',fontSize:11,fontWeight:600,cursor:'pointer',background:previewFormat===t.id?'#2a2a38':'transparent',color:previewFormat===t.id?'#c0bcff':'#5a5a78',transition:'all .15s'}}>
+                            {t.label}
+                          </button>
+                        ))}
                       </div>
-                    )}
+                      {previewFormat==='fb_feed'    && <FbFeedPreview />}
+                      {previewFormat==='ig_stories' && <IgStoriesPreview />}
+                      {previewFormat==='ig_feed'    && <IgFeedPreview />}
+                    </div>
 
                     {!imagePreview && <div style={{padding:'10px 14px',background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.2)',borderRadius:8,fontSize:12,color:'#fbbf24'}}>⚠ Nessuna immagine caricata — verrà creata la campagna e l'Ad Set, ma non l'annuncio.</div>}
                   </div>
