@@ -152,6 +152,8 @@ export default function App() {
   }, [page])
 
   useEffect(() => {
+    if (page !== 'crea') return
+    if (!campForm.nome && step === 1) return
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify({
         form: campForm,
@@ -159,7 +161,13 @@ export default function App() {
         step,
       }))
     } catch {}
-  }, [campForm, carouselCards, step])
+  }, [campForm, carouselCards, step, page])
+
+  useEffect(() => {
+    if (page !== 'crea') return
+    const d = getDraft()
+    setShowDraftBanner(!!d)
+  }, [page])
 
   useEffect(() => {
     if (!campForm.clienteId || !settings.token) { setAudiences([]); return }
@@ -209,9 +217,12 @@ export default function App() {
 
   function navigateToCrea() {
     const d = getDraft()
-    if (d?.form?.nome) {
+    if (d) {
       setShowDraftBanner(true)
     } else {
+      setCampForm({ ...DEFAULT_CAMP_FORM, startDate: new Date().toISOString().split('T')[0] })
+      setCarouselCards(DEFAULT_CAROUSEL.map(c => ({ ...c })))
+      setStep(1)
       setShowDraftBanner(false)
     }
     setPage('crea')
