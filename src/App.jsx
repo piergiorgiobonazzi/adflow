@@ -90,7 +90,8 @@ export default function App() {
     etaMin:'18', etaMax:'45', genere:'0', paesi:'IT', interessi:'',
     placement:'automatic', adText:'', adHeadline:'', adDesc:'', adUrl:'',
     adCta:'LEARN_MORE', budgetType:'DAILY', budget:'10',
-    startDate: new Date().toISOString().split('T')[0], endDate:'', bidStrategy:'LOWEST_COST_WITHOUT_CAP',
+    startDate: new Date().toISOString().split('T')[0], startTime:'00:00',
+    endDate:'', noEndDate:false, bidStrategy:'LOWEST_COST_WITHOUT_CAP',
   })
 
   const [clientForm, setClientForm] = useState({ name:'', adAccount:'', pageId:'', sector:'E-commerce', notes:'' })
@@ -242,8 +243,8 @@ export default function App() {
           objective: campForm.obiettivo,
           daily_budget:    campForm.budgetType === 'DAILY'    ? Number(campForm.budget) : undefined,
           lifetime_budget: campForm.budgetType === 'LIFETIME' ? Number(campForm.budget) : undefined,
-          start_time: campForm.startDate || undefined,
-          stop_time:  campForm.endDate   || undefined,
+          start_time: campForm.startDate ? `${campForm.startDate}T${campForm.startTime||'00:00'}:00` : undefined,
+          stop_time:  (!campForm.noEndDate && campForm.endDate) ? campForm.endDate : undefined,
           status: 'PAUSED',
         }),
       })
@@ -765,9 +766,11 @@ export default function App() {
                     {/* Image upload */}
                     <div style={{marginBottom:14}}>
                       <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Immagine creativa</label>
-                      <label style={{display:'block',border:'1px dashed #3a3a5e',borderRadius:8,padding:imagePreview?0:20,textAlign:imagePreview?'left':'center',cursor:'pointer',background:'#1a1a24',overflow:'hidden'}}>
+                      <label style={{display:'block',border:'1px dashed #3a3a5e',borderRadius:8,padding:imagePreview?0:20,textAlign:'center',cursor:'pointer',background:'#1a1a24',overflow:'hidden'}}>
                         {imagePreview
-                          ? <img src={imagePreview} alt="preview" style={{width:'100%',maxHeight:160,objectFit:'cover',display:'block'}} />
+                          ? <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:8,minHeight:80}}>
+                              <img src={imagePreview} alt="preview" style={{maxWidth:200,maxHeight:200,objectFit:'contain',borderRadius:6,display:'block'}} />
+                            </div>
                           : <div style={{color:'#5a5a78',fontSize:12}}>
                               <div style={{fontSize:24,marginBottom:6}}>🖼️</div>
                               Clicca per caricare un'immagine (JPG, PNG — max 8 MB)
@@ -804,44 +807,119 @@ export default function App() {
                 {step===4 && (
                   <div>
                     <div style={{fontSize:14,fontWeight:600,marginBottom:16}}>Budget e Schedulazione</div>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-                      {[{label:'Tipo budget',key:'budgetType',tag:'select',opts:[{v:'DAILY',l:'Giornaliero'},{v:'LIFETIME',l:'Totale'}]},{label:'Importo (€)',key:'budget',type:'number'},{label:'Data inizio',key:'startDate',type:'date'},{label:'Data fine (opzionale)',key:'endDate',type:'date'}].map(f => (
-                        <div key={f.key}>
-                          <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>{f.label}</label>
-                          {f.tag==='select'
-                            ? <select value={campForm[f.key]} onChange={e=>setCampForm({...campForm,[f.key]:e.target.value})} style={inputStyle}>{f.opts.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}</select>
-                            : <input type={f.type||'text'} value={campForm[f.key]} onChange={e=>setCampForm({...campForm,[f.key]:e.target.value})} style={inputStyle} />
-                          }
-                        </div>
-                      ))}
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
+                      <div>
+                        <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Tipo budget</label>
+                        <select value={campForm.budgetType} onChange={e=>setCampForm({...campForm,budgetType:e.target.value})} style={inputStyle}>
+                          <option value="DAILY">Giornaliero</option>
+                          <option value="LIFETIME">Totale</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Importo (€)</label>
+                        <input type="number" value={campForm.budget} onChange={e=>setCampForm({...campForm,budget:e.target.value})} style={inputStyle} />
+                      </div>
+                    </div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:8,marginBottom:12,alignItems:'end'}}>
+                      <div>
+                        <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Data inizio</label>
+                        <input type="date" value={campForm.startDate} onChange={e=>setCampForm({...campForm,startDate:e.target.value})} style={inputStyle} />
+                      </div>
+                      <div>
+                        <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Orario</label>
+                        <input type="time" value={campForm.startTime} onChange={e=>setCampForm({...campForm,startTime:e.target.value})} style={{...inputStyle,width:100}} />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Data fine</label>
+                      <input
+                        type="date"
+                        value={campForm.endDate}
+                        disabled={campForm.noEndDate}
+                        onChange={e=>setCampForm({...campForm,endDate:e.target.value})}
+                        style={{...inputStyle,opacity:campForm.noEndDate?.5:1,marginBottom:8}}
+                      />
+                      <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize:12,color:'#9090b0'}}>
+                        <input
+                          type="checkbox"
+                          checked={campForm.noEndDate}
+                          onChange={e=>setCampForm({...campForm,noEndDate:e.target.checked,endDate:e.target.checked?'':campForm.endDate})}
+                          style={{accentColor:'#6c63ff',width:14,height:14}}
+                        />
+                        Nessuna data di fine (campagna continua)
+                      </label>
                     </div>
                   </div>
                 )}
 
                 {/* Step 5 — Lancio */}
-                {step===5 && (
+                {step===5 && (() => {
+                  const ctaLabels = { LEARN_MORE:'Scopri di più', SHOP_NOW:'Acquista ora', SIGN_UP:'Iscriviti', CONTACT_US:'Contattaci', GET_QUOTE:'Richiedi preventivo', BOOK_NOW:'Prenota ora' }
+                  const adClient = clients.find(c=>c.id===campForm.clienteId)
+                  const pageName = adClient?.name || campForm.nome || 'La tua Pagina'
+                  const displayUrl = campForm.adUrl ? campForm.adUrl.replace(/^https?:\/\//,'').split('/')[0].toUpperCase() : ''
+                  return (
                   <div>
                     <div style={{fontSize:14,fontWeight:600,marginBottom:16}}>Riepilogo e Lancio</div>
                     {!settings.token && <div style={{padding:'12px 16px',background:'rgba(245,158,11,.1)',border:'1px solid rgba(245,158,11,.3)',borderRadius:8,color:'#fbbf24',fontSize:13,marginBottom:16}}>⚠ Token non configurato. Vai in Impostazioni prima di lanciare.</div>}
-                    {imagePreview && <img src={imagePreview} alt="preview" style={{width:'100%',maxHeight:120,objectFit:'cover',borderRadius:8,marginBottom:16}} />}
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
                       {[
                         {l:'Campagna',  v:campForm.nome||'—'},
-                        {l:'Cliente',   v:clients.find(c=>c.id===campForm.clienteId)?.name||'—'},
+                        {l:'Cliente',   v:adClient?.name||'—'},
                         {l:'Obiettivo', v:campForm.obiettivo.replace('OUTCOME_','')},
                         {l:'Formato',   v:campForm.formato},
                         {l:'Budget',    v:'€'+campForm.budget+(campForm.budgetType==='DAILY'?'/giorno':' totale')},
                         {l:'Paesi',     v:campForm.paesi},
                         {l:'Età',       v:campForm.etaMin+'-'+campForm.etaMax+' anni'},
-                        {l:'CTA',       v:campForm.adCta},
+                        {l:'Inizio',    v:campForm.startDate+(campForm.startTime?' '+campForm.startTime:'')},
                       ].map(r=>(
                         <div key={r.l}><div style={{fontSize:11,color:'#5a5a78',marginBottom:4}}>{r.l.toUpperCase()}</div><div style={{fontWeight:500,fontSize:13}}>{r.v}</div></div>
                       ))}
                     </div>
-                    {campForm.adHeadline && <div style={{marginTop:16,paddingTop:16,borderTop:'1px solid #2a2a38'}}><div style={{fontSize:11,color:'#5a5a78',marginBottom:4}}>HEADLINE</div><div style={{fontWeight:500}}>{campForm.adHeadline}</div></div>}
-                    {!imagePreview && <div style={{marginTop:12,padding:'10px 14px',background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.2)',borderRadius:8,fontSize:12,color:'#fbbf24'}}>⚠ Nessuna immagine caricata — verrà creata la campagna e l'Ad Set, ma non l'annuncio.</div>}
+
+                    {/* Facebook feed mock */}
+                    {(imagePreview || campForm.adHeadline || campForm.adText) && (
+                      <div style={{marginBottom:16}}>
+                        <div style={{fontSize:11,color:'#5a5a78',marginBottom:8,textTransform:'uppercase',letterSpacing:.5}}>Preview Inserzione — Feed Facebook</div>
+                        <div style={{background:'#fff',borderRadius:10,overflow:'hidden',maxWidth:400,boxShadow:'0 2px 12px rgba(0,0,0,.4)',color:'#1c1e21',fontFamily:'Helvetica Neue,Arial,sans-serif'}}>
+                          {/* Header */}
+                          <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 12px'}}>
+                            <div style={{width:36,height:36,borderRadius:'50%',background:'#1877f2',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontSize:13,fontWeight:700,flexShrink:0}}>{pageName.charAt(0).toUpperCase()}</div>
+                            <div style={{flex:1}}>
+                              <div style={{fontSize:13,fontWeight:600,color:'#1c1e21'}}>{pageName}</div>
+                              <div style={{fontSize:11,color:'#606770',display:'flex',alignItems:'center',gap:4}}>Sponsorizzato · <span style={{fontSize:10}}>🌐</span></div>
+                            </div>
+                            <div style={{fontSize:20,color:'#606770',lineHeight:1}}>···</div>
+                          </div>
+                          {/* Ad text */}
+                          {campForm.adText && <div style={{padding:'0 12px 10px',fontSize:13,color:'#1c1e21',lineHeight:1.5}}>{campForm.adText}</div>}
+                          {/* Image */}
+                          {imagePreview
+                            ? <img src={imagePreview} alt="ad" style={{width:'100%',maxHeight:210,objectFit:'cover',display:'block'}} />
+                            : <div style={{height:130,background:'#e4e6ea',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,color:'#bec3c9'}}>🖼️</div>
+                          }
+                          {/* Link bar */}
+                          <div style={{background:'#f0f2f5',padding:'8px 12px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                            <div style={{flex:1,minWidth:0}}>
+                              {displayUrl && <div style={{fontSize:11,color:'#606770',marginBottom:2,textTransform:'uppercase',letterSpacing:.3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{displayUrl}</div>}
+                              <div style={{fontSize:13,fontWeight:600,color:'#1c1e21',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{campForm.adHeadline||campForm.nome||'Titolo annuncio'}</div>
+                              {campForm.adDesc && <div style={{fontSize:12,color:'#606770',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{campForm.adDesc}</div>}
+                            </div>
+                            <button style={{marginLeft:8,padding:'6px 12px',background:'#e4e6ea',border:'none',borderRadius:6,fontSize:12,fontWeight:600,color:'#1c1e21',cursor:'default',flexShrink:0,whiteSpace:'nowrap'}}>{ctaLabels[campForm.adCta]||'Scopri di più'}</button>
+                          </div>
+                          {/* Reactions bar */}
+                          <div style={{padding:'6px 12px',borderTop:'1px solid #e4e6ea',display:'flex',gap:16,fontSize:12,color:'#606770'}}>
+                            <span>👍 Mi piace</span><span>💬 Commenta</span><span>↗ Condividi</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {!imagePreview && <div style={{padding:'10px 14px',background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.2)',borderRadius:8,fontSize:12,color:'#fbbf24'}}>⚠ Nessuna immagine caricata — verrà creata la campagna e l'Ad Set, ma non l'annuncio.</div>}
                   </div>
-                )}
+                  )
+                })()}
               </div>
 
               <div style={{display:'flex',justifyContent:step===1?'flex-end':'space-between'}}>
