@@ -3,8 +3,8 @@ import './App.css'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
-function MiniChart({ data, color = '#6c63ff', height = 56 }) {
-  if (!data || data.length < 2) return <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5a5a78', fontSize: 11 }}>—</div>
+function MiniChart({ data, color = '#00c8ff', height = 56 }) {
+  if (!data || data.length < 2) return <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4d4d6e', fontSize: 11 }}>—</div>
   const W = 400, H = height
   const max = Math.max(...data), min = Math.min(...data), range = max - min || 1
   const pts = data.map((v, i) => `${(i / (data.length - 1)) * (W - 20) + 10},${H - 6 - ((v - min) / range) * (H - 12)}`).join(' ')
@@ -18,14 +18,14 @@ function MiniChart({ data, color = '#6c63ff', height = 56 }) {
   )
 }
 
-const COLORS = ['#6c63ff','#22c55e','#f59e0b','#ef4444','#3b82f6','#ec4899','#14b8a6']
+const COLORS = ['#00c8ff','#22c55e','#ff6b35','#ef4444','#3b82f6','#ec4899','#14b8a6']
 const API = import.meta.env.VITE_API_URL || ''
 
 const STATUS_STYLE = {
   ACTIVE:        { bg: 'rgba(34,197,94,.15)',   color: '#4ade80' },
   PAUSED:        { bg: 'rgba(245,158,11,.15)',  color: '#fbbf24' },
   DELETED:       { bg: 'rgba(239,68,68,.15)',   color: '#f87171' },
-  ARCHIVED:      { bg: 'rgba(90,90,120,.2)',    color: '#9090b0' },
+  ARCHIVED:      { bg: 'rgba(90,90,120,.2)',    color: '#8080a8' },
   IN_PROCESS:    { bg: 'rgba(59,130,246,.15)',  color: '#60a5fa' },
   WITH_ISSUES:   { bg: 'rgba(239,68,68,.15)',   color: '#f87171' },
   PENDING_REVIEW:{ bg: 'rgba(245,158,11,.15)',  color: '#fbbf24' },
@@ -60,7 +60,7 @@ function getRules() {
     { id:1, name:'Pausa se CPA > soglia',     desc:'Mette in pausa le campagne se il CPA supera il limite',    on:false, icon:'⏸', color:'rgba(239,68,68,.15)',  condition:'cpa_gt',   value:'',    action:'pause' },
     { id:2, name:'Scala budget se ROAS alto', desc:'Aumenta il budget del 20% se ROAS > 3x per 7 giorni',      on:true,  icon:'📈', color:'rgba(34,197,94,.15)', condition:'roas_gt',  value:'3',   action:'budget_increase' },
     { id:3, name:'Alerta spesa giornaliera',  desc:'Notifica quando la spesa supera il 90% del budget',         on:true,  icon:'💰', color:'rgba(245,158,11,.15)',condition:'spend_gt', value:'',    action:'notify' },
-    { id:4, name:'Pausa se CTR < 0.5%',       desc:'Sospende annunci con CTR troppo basso dopo 1000 impression',on:false, icon:'📉', color:'rgba(108,99,255,.15)',condition:'ctr_lt',   value:'0.5', action:'pause' },
+    { id:4, name:'Pausa se CTR < 0.5%',       desc:'Sospende annunci con CTR troppo basso dopo 1000 impression',on:false, icon:'📉', color:'rgba(0,200,255,.15)',condition:'ctr_lt',   value:'0.5', action:'pause' },
   ]
 }
 function saveRules(r) { localStorage.setItem('adflow_rules', JSON.stringify(r)) }
@@ -528,7 +528,7 @@ export default function App() {
     const condLabels = { cpa_gt:'CPA >', roas_gt:'ROAS >', ctr_lt:'CTR <', spend_gt:'Spesa >' }
     const actLabels  = { pause:'Metti in pausa', budget_increase:'Aumenta budget 20%', budget_decrease:'Riduci budget 20%', notify:'Solo notifica' }
     const newRules = [...rules, {
-      id: Date.now(), name: ruleForm.name, on: false, icon: '⚡', color: 'rgba(108,99,255,.15)',
+      id: Date.now(), name: ruleForm.name, on: false, icon: '⚡', color: 'rgba(0,200,255,.15)',
       desc: `${condLabels[ruleForm.condition]} ${ruleForm.value} → ${actLabels[ruleForm.action]}`,
       condition: ruleForm.condition, value: ruleForm.value, action: ruleForm.action,
     }]
@@ -687,7 +687,7 @@ export default function App() {
         rows.push([acc.name, `€${spend.toFixed(2)}`, String(d.impressions || 0), String(d.clicks || 0), d.ctr ? parseFloat(d.ctr).toFixed(2)+'%' : '—', spend > 0 ? (pv/spend).toFixed(2)+'x' : '—'])
       }))
       const doc = new jsPDF()
-      doc.setFillColor(108, 99, 255)
+      doc.setFillColor(0, 180, 220)
       doc.rect(0, 0, 210, 28, 'F')
       doc.setFontSize(18); doc.setTextColor(255); doc.setFont('helvetica', 'bold')
       doc.text('AdFlow Report', 14, 17)
@@ -701,8 +701,8 @@ export default function App() {
         startY: 42,
         head: [['Account', 'Spesa', 'Impression', 'Click', 'CTR', 'ROAS']],
         body: rows,
-        headStyles: { fillColor: [108, 99, 255] },
-        alternateRowStyles: { fillColor: [245, 245, 255] },
+        headStyles: { fillColor: [0, 180, 220] },
+        alternateRowStyles: { fillColor: [232, 248, 252] },
         styles: { fontSize: 9 },
       })
       doc.save(`adflow-report-${type}-${new Date().toISOString().split('T')[0]}.pdf`)
@@ -790,12 +790,12 @@ export default function App() {
     { id:'impostazioni', label:'Impostazioni',     icon:'⚙' },
   ]
 
-  const inputStyle = { width:'100%', background:'#1a1a24', border:'1px solid #2a2a38', borderRadius:8, padding:'9px 12px', fontSize:13, color:'#f0f0f8', fontFamily:'DM Sans,sans-serif' }
-  const monoInputStyle = { ...inputStyle, fontFamily:'monospace' }
-  const btnPrimary = { padding:'7px 16px', borderRadius:8, background:'#6c63ff', color:'white', border:'none', fontSize:12, cursor:'pointer', fontFamily:'DM Sans,sans-serif' }
-  const btnSecondary = { padding:'7px 16px', borderRadius:8, background:'#1a1a24', color:'#9090b0', border:'1px solid #2a2a38', fontSize:12, cursor:'pointer', fontFamily:'DM Sans,sans-serif' }
-  const btnDanger = { padding:'5px 10px', borderRadius:6, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.3)', fontSize:11, cursor:'pointer', fontFamily:'DM Sans,sans-serif' }
-  const helpText = { fontSize:11, color:'#5a5a78', marginTop:5, lineHeight:1.5 }
+  const inputStyle = { width:'100%', background:'#10101e', border:'1px solid #1e1e30', borderRadius:8, padding:'9px 12px', fontSize:13, color:'#eef0f8', fontFamily:'DM Sans,sans-serif' }
+  const monoInputStyle = { ...inputStyle, fontFamily:"monospace", fontSize:12 }
+  const btnPrimary = { padding:'8px 18px', borderRadius:8, background:'#00c8ff', color:'#06060b', border:'none', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'DM Sans,sans-serif', letterSpacing:'0.02em' }
+  const btnSecondary = { padding:'8px 18px', borderRadius:8, background:'transparent', color:'#8080a8', border:'1px solid #1e1e30', fontSize:12, cursor:'pointer', fontFamily:'DM Sans,sans-serif' }
+  const btnDanger = { padding:'5px 10px', borderRadius:6, background:'rgba(239,68,68,.08)', color:'#f87171', border:'1px solid rgba(239,68,68,.25)', fontSize:11, cursor:'pointer', fontFamily:'DM Sans,sans-serif' }
+  const helpText = { fontSize:11, color:'#4d4d6e', marginTop:5, lineHeight:1.5 }
 
   // ── Status badge ───────────────────────────────────────────────────────────
   function StatusBadge({ status }) {
@@ -804,27 +804,27 @@ export default function App() {
   }
 
   return (
-    <div style={{display:'flex',minHeight:'100vh',background:'#0a0a0f',color:'#f0f0f8',fontFamily:'DM Sans,sans-serif'}}>
+    <div style={{display:'flex',minHeight:'100vh',background:'#06060b',color:'#eef0f8',fontFamily:'DM Sans,sans-serif'}}>
 
       {/* SIDEBAR */}
-      <aside style={{width:220,background:'#111118',borderRight:'1px solid #2a2a38',display:'flex',flexDirection:'column'}}>
-        <div style={{padding:'20px 20px 16px',borderBottom:'1px solid #2a2a38'}}>
-          <div style={{fontFamily:'Syne,sans-serif',fontSize:20,fontWeight:800}}>Ad<span style={{color:'#8b85ff'}}>Flow</span></div>
-          <div style={{fontSize:11,color:'#5a5a78',marginTop:2}}>Agency Ads Platform</div>
+      <aside style={{width:220,background:'#09091a',borderRight:'1px solid #1e1e30',display:'flex',flexDirection:'column'}}>
+        <div style={{padding:'20px 20px 16px',borderBottom:'1px solid #1e1e30'}}>
+          <div style={{fontFamily:'Syne,sans-serif',fontSize:30,letterSpacing:'0.04em',lineHeight:1}}>Ad<span style={{color:'#00c8ff'}}>Flow</span></div>
+          <div style={{fontSize:10,color:'#4d4d6e',marginTop:4,letterSpacing:'0.08em',textTransform:'uppercase'}}>Agency Ads Platform</div>
         </div>
         <nav style={{padding:'12px 10px',flex:1}}>
           {navItems.map(n => (
-            <button key={n.id} onClick={() => n.id === 'crea' ? navigateToCrea() : setPage(n.id)} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 10px',borderRadius:8,cursor:'pointer',fontSize:13,color:page===n.id?'#8b85ff':'#9090b0',background:page===n.id?'rgba(108,99,255,.15)':'none',border:'none',width:'100%',textAlign:'left',marginBottom:2,fontFamily:'DM Sans,sans-serif'}}>
-              <span style={{fontSize:14,opacity:.8}}>{n.icon}</span>{n.label}
+            <button key={n.id} onClick={() => n.id === 'crea' ? navigateToCrea() : setPage(n.id)} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 10px',borderRadius:8,cursor:'pointer',fontSize:13,fontWeight:page===n.id?600:400,color:page===n.id?'#00c8ff':'#8080a8',background:page===n.id?'rgba(0,200,255,.08)':'none',border:page===n.id?'1px solid rgba(0,200,255,.2)':'1px solid transparent',width:'100%',textAlign:'left',marginBottom:2,fontFamily:'DM Sans,sans-serif',transition:'all 0.15s'}}>
+              <span style={{fontSize:14,opacity:page===n.id?1:.6}}>{n.icon}</span>{n.label}
             </button>
           ))}
         </nav>
-        <div style={{padding:'12px 10px',borderTop:'1px solid #2a2a38'}}>
-          <div style={{display:'flex',alignItems:'center',gap:10,padding:10,background:'#1a1a24',borderRadius:8,fontSize:13}}>
-            <div style={{width:28,height:28,borderRadius:6,background:'#3d37cc',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,flexShrink:0}}>{(settings.agencyName||'A').charAt(0).toUpperCase()}</div>
+        <div style={{padding:'12px 10px',borderTop:'1px solid #1e1e30'}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,padding:10,background:'#10101e',borderRadius:8,fontSize:13}}>
+            <div style={{width:28,height:28,borderRadius:6,background:'#0099bb',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,flexShrink:0}}>{(settings.agencyName||'A').charAt(0).toUpperCase()}</div>
             <div>
               <div style={{fontSize:12,fontWeight:500}}>{settings.agencyName||'La mia Agenzia'}</div>
-              <div style={{fontSize:10,color:settings.token?'#22c55e':'#5a5a78'}}>{settings.token?'● Token configurato':'● Token mancante'}</div>
+              <div style={{fontSize:10,color:settings.token?'#22c55e':'#4d4d6e'}}>{settings.token?'● Token configurato':'● Token mancante'}</div>
             </div>
           </div>
         </div>
@@ -832,8 +832,8 @@ export default function App() {
 
       {/* MAIN */}
       <main style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-        <div style={{padding:'16px 24px',borderBottom:'1px solid #2a2a38',background:'#111118',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <div style={{fontFamily:'Syne,sans-serif',fontSize:18,fontWeight:700}}>{navItems.find(n=>n.id===page)?.label}</div>
+        <div style={{padding:'16px 24px',borderBottom:'1px solid #1e1e30',background:'#09091a',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div style={{fontFamily:'Syne,sans-serif',fontSize:22,letterSpacing:'0.04em'}}>{navItems.find(n=>n.id===page)?.label}</div>
           <div style={{display:'flex',gap:8}}>
             <button onClick={() => setPage('impostazioni')} style={btnSecondary}>⚙ Token</button>
             <button onClick={() => { navigateToCrea(); setStep(1) }} style={btnPrimary}>+ Nuova Campagna</button>
@@ -853,41 +853,41 @@ export default function App() {
                   { label:'Campagne Attive',      val: campagne.filter(c=>c.status==='ACTIVE').length },
                   { label:'Clienti',              val: clients.length },
                 ].map((s,i) => (
-                  <div key={i} style={{background:'#111118',border:'1px solid #2a2a38',borderRadius:12,padding:'16px 18px'}}>
-                    <div style={{fontSize:11,color:'#5a5a78',textTransform:'uppercase',letterSpacing:.5,marginBottom:8}}>{s.label}</div>
-                    <div style={{fontSize:24,fontWeight:600,fontFamily:'Syne,sans-serif'}}>{s.val}</div>
+                  <div key={i} style={{background:'#09091a',border:'1px solid #1e1e30',borderRadius:12,padding:'16px 18px'}}>
+                    <div style={{fontSize:10,color:'#4d4d6e',textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:10}}>{s.label}</div>
+                    <div style={{fontSize:26,fontWeight:500,fontFamily:"monospace",color:'#eef0f8'}}>{s.val}</div>
                   </div>
                 ))}
               </div>
               {dashChartData.length > 1 && (
-                <div style={{background:'#111118',border:'1px solid #2a2a38',borderRadius:12,padding:20,marginBottom:16}}>
+                <div style={{background:'#09091a',border:'1px solid #1e1e30',borderRadius:12,padding:20,marginBottom:16}}>
                   <div style={{fontSize:13,fontWeight:600,marginBottom:12}}>Andamento ultimi 7 giorni</div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
                     <div>
-                      <div style={{fontSize:11,color:'#5a5a78',marginBottom:4}}>SPESA (€)</div>
-                      <MiniChart data={dashChartData.map(d=>d.spend)} color="#6c63ff" height={56} />
-                      <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'#5a5a78',marginTop:2}}>
+                      <div style={{fontSize:11,color:'#4d4d6e',marginBottom:4}}>SPESA (€)</div>
+                      <MiniChart data={dashChartData.map(d=>d.spend)} color="#00c8ff" height={56} />
+                      <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'#4d4d6e',marginTop:2}}>
                         <span>{dashChartData[0]?.date}</span><span>{dashChartData.slice(-1)[0]?.date}</span>
                       </div>
                     </div>
                     <div>
-                      <div style={{fontSize:11,color:'#5a5a78',marginBottom:4}}>ROAS</div>
+                      <div style={{fontSize:11,color:'#4d4d6e',marginBottom:4}}>ROAS</div>
                       <MiniChart data={dashChartData.map(d=>d.roas)} color="#22c55e" height={56} />
-                      <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'#5a5a78',marginTop:2}}>
+                      <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'#4d4d6e',marginTop:2}}>
                         <span>{dashChartData[0]?.date}</span><span>{dashChartData.slice(-1)[0]?.date}</span>
                       </div>
                     </div>
                   </div>
                 </div>
               )}
-              <div style={{background:'#111118',border:'1px solid #2a2a38',borderRadius:12,padding:20}}>
+              <div style={{background:'#09091a',border:'1px solid #1e1e30',borderRadius:12,padding:20}}>
                 <div style={{fontSize:14,fontWeight:600,marginBottom:16}}>Come iniziare</div>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16}}>
                   {[{n:1,t:'Configura il Token',d:'Inserisci il System User Token in Impostazioni'},{n:2,t:'Aggiungi Clienti',d:'Collega gli ad account dei tuoi clienti'},{n:3,t:'Lancia Campagne',d:'Crea campagne senza toccare Facebook'}].map(s => (
                     <div key={s.n} style={{textAlign:'center',padding:16}}>
-                      <div style={{width:40,height:40,borderRadius:'50%',background:'rgba(108,99,255,.15)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 10px',fontSize:16,fontWeight:700,color:'#8b85ff'}}>{s.n}</div>
+                      <div style={{width:40,height:40,borderRadius:'50%',background:'rgba(0,200,255,.15)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 10px',fontSize:16,fontWeight:700,color:'#33d4ff'}}>{s.n}</div>
                       <div style={{fontSize:13,fontWeight:500,marginBottom:4}}>{s.t}</div>
-                      <div style={{fontSize:11,color:'#5a5a78'}}>{s.d}</div>
+                      <div style={{fontSize:11,color:'#4d4d6e'}}>{s.d}</div>
                     </div>
                   ))}
                 </div>
@@ -902,14 +902,14 @@ export default function App() {
                 <button onClick={() => setModalClient(true)} style={btnPrimary}>+ Aggiungi Cliente</button>
               </div>
               {clients.length === 0 ? (
-                <div style={{textAlign:'center',padding:60,color:'#5a5a78'}}>
+                <div style={{textAlign:'center',padding:60,color:'#4d4d6e'}}>
                   <div style={{fontSize:40,marginBottom:12}}>🏢</div>
                   <div style={{fontSize:13}}>Nessun cliente. Clicca "Aggiungi Cliente" per iniziare.</div>
                 </div>
               ) : (
                 <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>
                   {clients.map((c,i) => (
-                    <div key={c.id} style={{background:'#111118',border:'1px solid #2a2a38',borderRadius:12,padding:16}}>
+                    <div key={c.id} style={{background:'#09091a',border:'1px solid #1e1e30',borderRadius:12,padding:16}}>
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
                         <div style={{width:40,height:40,borderRadius:10,background:COLORS[i%COLORS.length]+'22',color:COLORS[i%COLORS.length],display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:700}}>{c.name.substring(0,2).toUpperCase()}</div>
                         <div style={{display:'flex',gap:6}}>
@@ -918,10 +918,10 @@ export default function App() {
                         </div>
                       </div>
                       <div style={{fontSize:14,fontWeight:600}}>{c.name}</div>
-                      <div style={{fontSize:11,color:'#5a5a78',marginTop:2}}>{c.sector} • {c.adAccount||'No Ad Account'}</div>
-                      <div style={{display:'flex',gap:12,marginTop:12,paddingTop:12,borderTop:'1px solid #2a2a38'}}>
-                        <div style={{fontSize:11,color:'#9090b0'}}><strong style={{display:'block',fontSize:13,color:'#f0f0f8'}}>{clientInsights[c.id]?.spend || '—'}</strong>Spesa</div>
-                        <div style={{fontSize:11,color:'#9090b0'}}><strong style={{display:'block',fontSize:13,color:'#f0f0f8'}}>{clientInsights[c.id]?.roas  || '—'}</strong>ROAS</div>
+                      <div style={{fontSize:11,color:'#4d4d6e',marginTop:2}}>{c.sector} • {c.adAccount||'No Ad Account'}</div>
+                      <div style={{display:'flex',gap:12,marginTop:12,paddingTop:12,borderTop:'1px solid #1e1e30'}}>
+                        <div style={{fontSize:11,color:'#8080a8'}}><strong style={{display:'block',fontSize:13,color:'#eef0f8'}}>{clientInsights[c.id]?.spend || '—'}</strong>Spesa</div>
+                        <div style={{fontSize:11,color:'#8080a8'}}><strong style={{display:'block',fontSize:13,color:'#eef0f8'}}>{clientInsights[c.id]?.roas  || '—'}</strong>ROAS</div>
                       </div>
                     </div>
                   ))}
@@ -932,28 +932,28 @@ export default function App() {
 
           {/* ── CAMPAGNE ──────────────────────────────────────────────────── */}
           {page==='campagne' && (
-            <div style={{background:'#111118',border:'1px solid #2a2a38',borderRadius:12,overflow:'hidden'}}>
-              <div style={{padding:'16px 20px',borderBottom:'1px solid #2a2a38',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                <div style={{fontSize:14,fontWeight:600}}>Tutte le Campagne <span style={{color:'#5a5a78',fontWeight:400,fontSize:12}}>({campagne.length})</span></div>
+            <div style={{background:'#09091a',border:'1px solid #1e1e30',borderRadius:12,overflow:'hidden'}}>
+              <div style={{padding:'16px 20px',borderBottom:'1px solid #1e1e30',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <div style={{fontSize:14,fontWeight:600}}>Tutte le Campagne <span style={{color:'#4d4d6e',fontWeight:400,fontSize:12}}>({campagne.length})</span></div>
                 <div style={{display:'flex',gap:8}}>
                   <button onClick={syncCampaigns} style={btnSecondary}>⟳ Sync Meta</button>
                   <button onClick={() => { navigateToCrea(); setStep(1) }} style={btnPrimary}>+ Nuova</button>
                 </div>
               </div>
               {campagne.length === 0 ? (
-                <div style={{textAlign:'center',padding:60,color:'#5a5a78'}}><div style={{fontSize:40,marginBottom:12}}>🚀</div><div style={{fontSize:13}}>Nessuna campagna ancora.</div></div>
+                <div style={{textAlign:'center',padding:60,color:'#4d4d6e'}}><div style={{fontSize:40,marginBottom:12}}>🚀</div><div style={{fontSize:13}}>Nessuna campagna ancora.</div></div>
               ) : (
                 <table style={{width:'100%',borderCollapse:'collapse'}}>
-                  <thead><tr>{['Campagna','Cliente','Obiettivo','Budget','Stato','Azioni'].map(h => <th key={h} style={{fontSize:11,color:'#5a5a78',textTransform:'uppercase',letterSpacing:.5,padding:'10px 16px',textAlign:'left',borderBottom:'1px solid #2a2a38'}}>{h}</th>)}</tr></thead>
+                  <thead><tr>{['Campagna','Cliente','Obiettivo','Budget','Stato','Azioni'].map(h => <th key={h} style={{fontSize:11,color:'#4d4d6e',textTransform:'uppercase',letterSpacing:.5,padding:'10px 16px',textAlign:'left',borderBottom:'1px solid #1e1e30'}}>{h}</th>)}</tr></thead>
                   <tbody>{campagne.map(c => (
-                    <tr key={c.id} style={{borderBottom:'1px solid #1a1a24'}}>
+                    <tr key={c.id} style={{borderBottom:'1px solid #10101e'}}>
                       <td style={{padding:'12px 16px',fontSize:13,fontWeight:500}}>
                         <span onClick={()=>openCampaignBreakdown(c)} style={{cursor:'pointer',color:'#c0bcff',textDecoration:'underline',textDecorationStyle:'dotted'}}>{c.nome}</span>
                         {c.hasAd && <span style={{marginLeft:6,fontSize:10,color:'#22c55e',background:'rgba(34,197,94,.1)',padding:'1px 5px',borderRadius:4}}>completa</span>}
                         {c.hasAdSet && !c.hasAd && <span style={{marginLeft:6,fontSize:10,color:'#fbbf24',background:'rgba(245,158,11,.1)',padding:'1px 5px',borderRadius:4}}>no annuncio</span>}
                       </td>
-                      <td style={{padding:'12px 16px',fontSize:13,color:'#9090b0'}}>{c.clienteName}</td>
-                      <td style={{padding:'12px 16px',fontSize:13,color:'#9090b0'}}>{c.obiettivo?.replace('OUTCOME_','')}</td>
+                      <td style={{padding:'12px 16px',fontSize:13,color:'#8080a8'}}>{c.clienteName}</td>
+                      <td style={{padding:'12px 16px',fontSize:13,color:'#8080a8'}}>{c.obiettivo?.replace('OUTCOME_','')}</td>
                       <td style={{padding:'12px 16px',fontSize:13}}>€{c.budget}{c.budgetType==='DAILY'?'/g':' tot'}</td>
                       <td style={{padding:'12px 16px'}}><StatusBadge status={c.status||'PAUSED'} /></td>
                       <td style={{padding:'12px 16px'}}>
@@ -980,7 +980,7 @@ export default function App() {
                 <div style={{maxWidth:520,margin:'60px auto 0',textAlign:'center'}}>
                   <div style={{fontSize:32,marginBottom:16}}>💾</div>
                   <div style={{fontSize:18,fontWeight:700,fontFamily:'Syne,sans-serif',marginBottom:8}}>Hai una bozza non completata</div>
-                  <div style={{fontSize:13,color:'#9090b0',marginBottom:28}}>Vuoi continuare da dove ti eri fermato oppure ricominciare da zero?</div>
+                  <div style={{fontSize:13,color:'#8080a8',marginBottom:28}}>Vuoi continuare da dove ti eri fermato oppure ricominciare da zero?</div>
                   <div style={{display:'flex',gap:12,justifyContent:'center'}}>
                     <button onClick={resumeDraft} style={{...btnPrimary,padding:'10px 24px',fontSize:14,background:'#22c55e',borderRadius:10}}>Riprendi bozza</button>
                     <button onClick={clearDraft} style={{...btnDanger,padding:'10px 24px',fontSize:14,borderRadius:10}}>Elimina bozza</button>
@@ -991,42 +991,42 @@ export default function App() {
               {/* Auto-save indicator + clear button */}
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
                 <div style={{fontSize:11,color:'#3a3a58'}}>💾 Salvato automaticamente</div>
-                {campForm.nome && <button onClick={clearDraft} style={{...btnSecondary,padding:'4px 10px',fontSize:11,color:'#5a5a78'}}>✕ Cancella bozza</button>}
+                {campForm.nome && <button onClick={clearDraft} style={{...btnSecondary,padding:'4px 10px',fontSize:11,color:'#4d4d6e'}}>✕ Cancella bozza</button>}
               </div>
               {/* Stepper */}
               <div style={{display:'flex',alignItems:'center',gap:0,marginBottom:28}}>
                 {[1,2,3,4,5].map((s,i) => (
                   <div key={s} style={{display:'flex',alignItems:'center'}}>
-                    <div style={{display:'flex',alignItems:'center',gap:8,fontSize:12,color:step===s?'#8b85ff':step>s?'#22c55e':'#5a5a78'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8,fontSize:12,color:step===s?'#33d4ff':step>s?'#22c55e':'#4d4d6e'}}>
                       <div style={{width:24,height:24,borderRadius:'50%',border:'1.5px solid currentColor',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:600}}>{step>s?'✓':s}</div>
                       {['Obiettivo','Pubblico','Creatività','Budget','Lancio'][i]}
                     </div>
-                    {i<4 && <div style={{flex:1,height:1,background:'#2a2a38',margin:'0 8px',width:30}}></div>}
+                    {i<4 && <div style={{flex:1,height:1,background:'#1e1e30',margin:'0 8px',width:30}}></div>}
                   </div>
                 ))}
               </div>
 
-              <div style={{background:'#111118',border:'1px solid #2a2a38',borderRadius:12,padding:20,marginBottom:16}}>
+              <div style={{background:'#09091a',border:'1px solid #1e1e30',borderRadius:12,padding:20,marginBottom:16}}>
 
                 {/* Step 1 — Obiettivo */}
                 {step===1 && (
                   <div>
                     <div style={{fontSize:14,fontWeight:600,marginBottom:16}}>Obiettivo della Campagna</div>
                     <div style={{marginBottom:14}}>
-                      <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Nome Campagna</label>
+                      <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>Nome Campagna</label>
                       <input value={campForm.nome} onChange={e=>setCampForm({...campForm,nome:e.target.value})} placeholder="es. Offerta Estate 2025" style={inputStyle} />
                     </div>
                     <div style={{marginBottom:14}}>
-                      <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Cliente</label>
+                      <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>Cliente</label>
                       <select value={campForm.clienteId} onChange={e=>setCampForm({...campForm,clienteId:e.target.value})} style={inputStyle}>
                         <option value="">— Seleziona cliente —</option>
                         {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
                     </div>
-                    <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:8}}>Obiettivo</label>
+                    <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:8}}>Obiettivo</label>
                     <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
                       {objOptions.map(o => (
-                        <div key={o.val} onClick={() => setCampForm({...campForm,obiettivo:o.val})} style={{padding:12,background:campForm.obiettivo===o.val?'rgba(108,99,255,.15)':'#1a1a24',border:campForm.obiettivo===o.val?'1px solid #6c63ff':'1px solid #2a2a38',borderRadius:8,cursor:'pointer',textAlign:'center'}}>
+                        <div key={o.val} onClick={() => setCampForm({...campForm,obiettivo:o.val})} style={{padding:12,background:campForm.obiettivo===o.val?'rgba(0,200,255,.15)':'#10101e',border:campForm.obiettivo===o.val?'1px solid #00c8ff':'1px solid #1e1e30',borderRadius:8,cursor:'pointer',textAlign:'center'}}>
                           <div style={{fontSize:20,marginBottom:4}}>{o.icon}</div>
                           <div style={{fontSize:12,fontWeight:500}}>{o.label}</div>
                         </div>
@@ -1041,10 +1041,10 @@ export default function App() {
                     <div style={{fontSize:14,fontWeight:600,marginBottom:16}}>Definisci il Pubblico</div>
 
                     {/* Custom audiences */}
-                    <div style={{marginBottom:16,padding:14,background:'#0d0d14',border:'1px solid #2a2a38',borderRadius:10}}>
-                      <div style={{fontSize:12,fontWeight:600,color:'#8b85ff',marginBottom:10}}>Pubblici Salvati</div>
+                    <div style={{marginBottom:16,padding:14,background:'#080712',border:'1px solid #1e1e30',borderRadius:10}}>
+                      <div style={{fontSize:12,fontWeight:600,color:'#33d4ff',marginBottom:10}}>Pubblici Salvati</div>
                       {audiencesLoading ? (
-                        <div style={{fontSize:12,color:'#5a5a78'}}>⏳ Caricamento pubblici…</div>
+                        <div style={{fontSize:12,color:'#4d4d6e'}}>⏳ Caricamento pubblici…</div>
                       ) : audiences.length > 0 ? (
                         <>
                           <select value={campForm.customAudienceId} onChange={e=>setCampForm({...campForm,customAudienceId:e.target.value})} style={inputStyle}>
@@ -1054,21 +1054,21 @@ export default function App() {
                           <div style={{...helpText,marginTop:6}}>Se selezioni un pubblico salvato, sovrascrive le impostazioni di età/paese/interessi.</div>
                         </>
                       ) : (
-                        <div style={{fontSize:12,color:'#5a5a78'}}>{campForm.clienteId ? 'Nessun pubblico personalizzato trovato per questo account.' : 'Seleziona un cliente nello Step 1 per caricare i pubblici.'}</div>
+                        <div style={{fontSize:12,color:'#4d4d6e'}}>{campForm.clienteId ? 'Nessun pubblico personalizzato trovato per questo account.' : 'Seleziona un cliente nello Step 1 per caricare i pubblici.'}</div>
                       )}
                     </div>
 
-                    <div style={{fontSize:12,color:'#9090b0',marginBottom:10}}>— oppure targeting manuale —</div>
+                    <div style={{fontSize:12,color:'#8080a8',marginBottom:10}}>— oppure targeting manuale —</div>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                       {[{label:'Età minima',key:'etaMin',type:'number'},{label:'Età massima',key:'etaMax',type:'number'},{label:'Paesi (es. IT,DE)',key:'paesi',type:'text'},{label:'Interessi',key:'interessi',type:'text'}].map(f => (
                         <div key={f.key}>
-                          <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>{f.label}</label>
+                          <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>{f.label}</label>
                           <input type={f.type} value={campForm[f.key]} onChange={e=>setCampForm({...campForm,[f.key]:e.target.value})} style={inputStyle} />
                         </div>
                       ))}
                     </div>
                     <div style={{marginTop:12}}>
-                      <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Genere</label>
+                      <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>Genere</label>
                       <select value={campForm.genere} onChange={e=>setCampForm({...campForm,genere:e.target.value})} style={inputStyle}>
                         <option value="0">Tutti</option>
                         <option value="1">Solo uomini</option>
@@ -1076,7 +1076,7 @@ export default function App() {
                       </select>
                     </div>
                     <div style={{marginTop:12}}>
-                      <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Posizionamenti</label>
+                      <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>Posizionamenti</label>
                       <select value={campForm.placement} onChange={e=>setCampForm({...campForm,placement:e.target.value})} style={inputStyle}>
                         <option value="automatic">Automatico (consigliato)</option>
                         <option value="facebook_feed">Solo Feed Facebook</option>
@@ -1092,10 +1092,10 @@ export default function App() {
                 {step===3 && (
                   <div>
                     <div style={{fontSize:14,fontWeight:600,marginBottom:16}}>Creatività dell'Annuncio</div>
-                    <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:8}}>Formato</label>
+                    <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:8}}>Formato</label>
                     <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:16}}>
                       {fmtOptions.map(f => (
-                        <div key={f.val} onClick={() => setCampForm({...campForm,formato:f.val})} style={{padding:10,background:campForm.formato===f.val?'rgba(108,99,255,.15)':'#1a1a24',border:campForm.formato===f.val?'1px solid #6c63ff':'1px solid #2a2a38',borderRadius:8,cursor:'pointer',textAlign:'center'}}>
+                        <div key={f.val} onClick={() => setCampForm({...campForm,formato:f.val})} style={{padding:10,background:campForm.formato===f.val?'rgba(0,200,255,.15)':'#10101e',border:campForm.formato===f.val?'1px solid #00c8ff':'1px solid #1e1e30',borderRadius:8,cursor:'pointer',textAlign:'center'}}>
                           <div style={{fontSize:16,marginBottom:3}}>{f.icon}</div>
                           <div style={{fontSize:11}}>{f.label}</div>
                         </div>
@@ -1105,18 +1105,18 @@ export default function App() {
                     {/* Carousel builder */}
                     {campForm.formato === 'carousel' && (
                       <div style={{marginBottom:16}}>
-                        <div style={{fontSize:13,fontWeight:600,marginBottom:10,color:'#e0e0f0'}}>Schede Carosello <span style={{fontSize:11,color:'#5a5a78'}}>({carouselCards.length}/10)</span></div>
+                        <div style={{fontSize:13,fontWeight:600,marginBottom:10,color:'#e4e6f4'}}>Schede Carosello <span style={{fontSize:11,color:'#4d4d6e'}}>({carouselCards.length}/10)</span></div>
                         {carouselCards.map((card, idx) => (
-                          <div key={card.id} style={{background:'#0d0d14',border:'1px solid #2a2a38',borderRadius:8,padding:12,marginBottom:8}}>
+                          <div key={card.id} style={{background:'#080712',border:'1px solid #1e1e30',borderRadius:8,padding:12,marginBottom:8}}>
                             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
-                              <span style={{fontSize:11,color:'#5a5a78',fontWeight:600}}>Scheda {idx+1}</span>
+                              <span style={{fontSize:11,color:'#4d4d6e',fontWeight:600}}>Scheda {idx+1}</span>
                               <button onClick={()=>removeCarouselCard(card.id)} style={{...btnDanger,padding:'2px 7px',fontSize:10}}>✕</button>
                             </div>
                             <div style={{display:'grid',gridTemplateColumns:'80px 1fr 1fr',gap:8,alignItems:'start'}}>
                               <label style={{display:'block',cursor:'pointer'}}>
                                 {card.imagePreview
                                   ? <img src={card.imagePreview} style={{width:80,height:60,objectFit:'cover',borderRadius:6,display:'block'}} />
-                                  : <div style={{width:80,height:60,background:'#1a1a24',border:'1px dashed #3a3a5e',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,color:'#5a5a78'}}>+</div>
+                                  : <div style={{width:80,height:60,background:'#10101e',border:'1px dashed #3a3a5e',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,color:'#4d4d6e'}}>+</div>
                                 }
                                 <input type="file" accept="image/*" style={{display:'none'}} onChange={e=>handleCarouselImageSelect(card.id, e.target.files?.[0])} />
                               </label>
@@ -1131,9 +1131,9 @@ export default function App() {
 
                     {/* Page selector */}
                     <div style={{marginBottom:16}}>
-                      <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Pagina Facebook</label>
+                      <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>Pagina Facebook</label>
                       {pagesLoading ? (
-                        <div style={{...inputStyle,color:'#5a5a78',display:'flex',alignItems:'center',gap:8}}>
+                        <div style={{...inputStyle,color:'#4d4d6e',display:'flex',alignItems:'center',gap:8}}>
                           <span style={{fontSize:11}}>⏳</span> Caricamento pagine…
                         </div>
                       ) : availablePages.length > 0 ? (
@@ -1166,23 +1166,23 @@ export default function App() {
                     {/* Format-specific image upload */}
                     {campForm.formato === 'image' && (
                       <div style={{marginBottom:14}}>
-                        <div style={{fontSize:12,color:'#9090b0',marginBottom:10,fontWeight:600}}>Immagini creative</div>
+                        <div style={{fontSize:12,color:'#8080a8',marginBottom:10,fontWeight:600}}>Immagini creative</div>
                         {[
                           { slot:'square',   label:'Quadrata 1:1',   dims:'1080×1080px', desc:'Feed Facebook/Instagram' },
                           { slot:'vertical', label:'Verticale 4:5',  dims:'1080×1350px', desc:'Feed mobile' },
                           { slot:'stories',  label:'Stories 9:16',   dims:'1080×1920px', desc:'Stories & Reels' },
                         ].map(({ slot, label, dims, desc }) => (
-                          <div key={slot} style={{display:'flex',alignItems:'center',gap:12,marginBottom:10,padding:10,background:'#0d0d14',border:'1px solid #2a2a38',borderRadius:8}}>
+                          <div key={slot} style={{display:'flex',alignItems:'center',gap:12,marginBottom:10,padding:10,background:'#080712',border:'1px solid #1e1e30',borderRadius:8}}>
                             <label style={{cursor:'pointer',flexShrink:0}}>
                               {multiImages[slot]?.preview
                                 ? <img src={multiImages[slot].preview} style={{width:64,height:64,objectFit:'cover',borderRadius:6,display:'block'}} />
-                                : <div style={{width:64,height:64,background:'#1a1a24',border:'1px dashed #3a3a5e',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,color:'#5a5a78'}}>+</div>
+                                : <div style={{width:64,height:64,background:'#10101e',border:'1px dashed #3a3a5e',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,color:'#4d4d6e'}}>+</div>
                               }
                               <input type="file" accept="image/*" style={{display:'none'}} onChange={e => handleMultiImageSelect(slot, e.target.files?.[0])} />
                             </label>
                             <div style={{flex:1,minWidth:0}}>
-                              <div style={{fontSize:12,fontWeight:600,color:'#e0e0f0'}}>{label}</div>
-                              <div style={{fontSize:11,color:'#5a5a78'}}>{dims} · {desc}</div>
+                              <div style={{fontSize:12,fontWeight:600,color:'#e4e6f4'}}>{label}</div>
+                              <div style={{fontSize:11,color:'#4d4d6e'}}>{dims} · {desc}</div>
                               {multiImages[slot] && (
                                 <button onClick={() => setMultiImages(p => ({ ...p, [slot]: null }))} style={{...btnDanger,padding:'2px 7px',fontSize:10,marginTop:4}}>✕ Rimuovi</button>
                               )}
@@ -1195,11 +1195,11 @@ export default function App() {
 
                     {campForm.formato === 'video' && (
                       <div style={{marginBottom:14}}>
-                        <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Video creativo</label>
-                        <label style={{display:'block',border:'1px dashed #3a3a5e',borderRadius:8,padding:videoPreview?0:20,textAlign:'center',cursor:'pointer',background:'#1a1a24',overflow:'hidden'}}>
+                        <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>Video creativo</label>
+                        <label style={{display:'block',border:'1px dashed #3a3a5e',borderRadius:8,padding:videoPreview?0:20,textAlign:'center',cursor:'pointer',background:'#10101e',overflow:'hidden'}}>
                           {videoPreview
                             ? <video src={videoPreview} controls style={{width:'100%',maxHeight:200,display:'block'}} />
-                            : <div style={{color:'#5a5a78',fontSize:12}}>
+                            : <div style={{color:'#4d4d6e',fontSize:12}}>
                                 <div style={{fontSize:24,marginBottom:6}}>🎬</div>
                                 Clicca per caricare un video (MP4 — max 4 GB)
                               </div>
@@ -1212,35 +1212,35 @@ export default function App() {
 
                     {campForm.formato === 'collection' && (
                       <div style={{marginBottom:14}}>
-                        <div style={{fontSize:12,color:'#9090b0',marginBottom:10,fontWeight:600}}>Immagine di copertina</div>
-                        <div style={{display:'flex',alignItems:'center',gap:12,padding:10,background:'#0d0d14',border:'1px solid #2a2a38',borderRadius:8,marginBottom:8}}>
+                        <div style={{fontSize:12,color:'#8080a8',marginBottom:10,fontWeight:600}}>Immagine di copertina</div>
+                        <div style={{display:'flex',alignItems:'center',gap:12,padding:10,background:'#080712',border:'1px solid #1e1e30',borderRadius:8,marginBottom:8}}>
                           <label style={{cursor:'pointer',flexShrink:0}}>
                             {multiImages.square?.preview
                               ? <img src={multiImages.square.preview} style={{width:64,height:64,objectFit:'cover',borderRadius:6,display:'block'}} />
-                              : <div style={{width:64,height:64,background:'#1a1a24',border:'1px dashed #3a3a5e',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,color:'#5a5a78'}}>+</div>
+                              : <div style={{width:64,height:64,background:'#10101e',border:'1px dashed #3a3a5e',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,color:'#4d4d6e'}}>+</div>
                             }
                             <input type="file" accept="image/*" style={{display:'none'}} onChange={e => handleMultiImageSelect('square', e.target.files?.[0])} />
                           </label>
                           <div style={{flex:1}}>
-                            <div style={{fontSize:12,fontWeight:600,color:'#e0e0f0'}}>Copertina Collection</div>
-                            <div style={{fontSize:11,color:'#5a5a78'}}>1200×628px consigliato</div>
+                            <div style={{fontSize:12,fontWeight:600,color:'#e4e6f4'}}>Copertina Collection</div>
+                            <div style={{fontSize:11,color:'#4d4d6e'}}>1200×628px consigliato</div>
                             {multiImages.square && <button onClick={() => setMultiImages(p => ({ ...p, square: null }))} style={{...btnDanger,padding:'2px 7px',fontSize:10,marginTop:4}}>✕ Rimuovi</button>}
                           </div>
                         </div>
-                        <div style={{padding:'10px 14px',background:'rgba(108,99,255,.08)',border:'1px solid rgba(108,99,255,.2)',borderRadius:8,fontSize:11,color:'#8b85ff'}}>ℹ I prodotti della collection vengono gestiti direttamente dal catalogo Meta collegato all'ad account.</div>
+                        <div style={{padding:'10px 14px',background:'rgba(0,200,255,.08)',border:'1px solid rgba(0,200,255,.2)',borderRadius:8,fontSize:11,color:'#33d4ff'}}>ℹ I prodotti della collection vengono gestiti direttamente dal catalogo Meta collegato all'ad account.</div>
                       </div>
                     )}
 
                     {[{label:'Testo principale',key:'adText',tag:'textarea'},{label:'Titolo (Headline)',key:'adHeadline'},{label:'Descrizione',key:'adDesc'},{label:'URL di destinazione',key:'adUrl'}].map(f => (
                       <div key={f.key} style={{marginBottom:12}}>
-                        <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>{f.label}</label>
+                        <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>{f.label}</label>
                         {f.tag==='textarea'
                           ? <textarea value={campForm[f.key]} onChange={e=>setCampForm({...campForm,[f.key]:e.target.value})} style={{...inputStyle,minHeight:70,resize:'vertical'}} />
                           : <input value={campForm[f.key]} onChange={e=>setCampForm({...campForm,[f.key]:e.target.value})} style={inputStyle} />
                         }
                       </div>
                     ))}
-                    <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Call to Action</label>
+                    <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>Call to Action</label>
                     <select value={campForm.adCta} onChange={e=>setCampForm({...campForm,adCta:e.target.value})} style={inputStyle}>
                       <option value="LEARN_MORE">Scopri di più</option>
                       <option value="SHOP_NOW">Acquista ora</option>
@@ -1258,29 +1258,29 @@ export default function App() {
                     <div style={{fontSize:14,fontWeight:600,marginBottom:16}}>Budget e Schedulazione</div>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
                       <div>
-                        <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Tipo budget</label>
+                        <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>Tipo budget</label>
                         <select value={campForm.budgetType} onChange={e=>setCampForm({...campForm,budgetType:e.target.value})} style={inputStyle}>
                           <option value="DAILY">Giornaliero</option>
                           <option value="LIFETIME">Totale</option>
                         </select>
                       </div>
                       <div>
-                        <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Importo (€)</label>
+                        <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>Importo (€)</label>
                         <input type="number" value={campForm.budget} onChange={e=>setCampForm({...campForm,budget:e.target.value})} style={inputStyle} />
                       </div>
                     </div>
                     <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:8,marginBottom:12,alignItems:'end'}}>
                       <div>
-                        <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Data inizio</label>
+                        <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>Data inizio</label>
                         <input type="date" value={campForm.startDate} onChange={e=>setCampForm({...campForm,startDate:e.target.value})} style={inputStyle} />
                       </div>
                       <div>
-                        <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Orario</label>
+                        <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>Orario</label>
                         <input type="time" value={campForm.startTime} onChange={e=>setCampForm({...campForm,startTime:e.target.value})} style={{...inputStyle,width:100}} />
                       </div>
                     </div>
                     <div>
-                      <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Data fine</label>
+                      <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>Data fine</label>
                       <input
                         type="date"
                         value={campForm.endDate}
@@ -1288,12 +1288,12 @@ export default function App() {
                         onChange={e=>setCampForm({...campForm,endDate:e.target.value})}
                         style={{...inputStyle,opacity:campForm.noEndDate?.5:1,marginBottom:8}}
                       />
-                      <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize:12,color:'#9090b0'}}>
+                      <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize:12,color:'#8080a8'}}>
                         <input
                           type="checkbox"
                           checked={campForm.noEndDate}
                           onChange={e=>setCampForm({...campForm,noEndDate:e.target.checked,endDate:e.target.checked?'':campForm.endDate})}
-                          style={{accentColor:'#6c63ff',width:14,height:14}}
+                          style={{accentColor:'#00c8ff',width:14,height:14}}
                         />
                         Nessuna data di fine (campagna continua)
                       </label>
@@ -1441,17 +1441,17 @@ export default function App() {
                         {l:'Inizio',    v:campForm.startDate+(campForm.startTime?' '+campForm.startTime:'')},
                         {l:'Fine',      v:campForm.noEndDate?'Nessuna':campForm.endDate||'—'},
                       ].map(r=>(
-                        <div key={r.l}><div style={{fontSize:11,color:'#5a5a78',marginBottom:4}}>{r.l.toUpperCase()}</div><div style={{fontWeight:500,fontSize:13}}>{r.v}</div></div>
+                        <div key={r.l}><div style={{fontSize:11,color:'#4d4d6e',marginBottom:4}}>{r.l.toUpperCase()}</div><div style={{fontWeight:500,fontSize:13}}>{r.v}</div></div>
                       ))}
                     </div>
 
                     {/* Format tabs + preview */}
                     <div style={{marginBottom:16}}>
-                      <div style={{fontSize:11,color:'#5a5a78',marginBottom:8,textTransform:'uppercase',letterSpacing:.5}}>Preview Inserzione</div>
+                      <div style={{fontSize:11,color:'#4d4d6e',marginBottom:8,textTransform:'uppercase',letterSpacing:.5}}>Preview Inserzione</div>
                       {/* Tab selector */}
-                      <div style={{display:'flex',gap:4,marginBottom:14,background:'#0a0a0f',padding:3,borderRadius:8,width:'fit-content'}}>
+                      <div style={{display:'flex',gap:4,marginBottom:14,background:'#06060b',padding:3,borderRadius:8,width:'fit-content'}}>
                         {fmtTabs.map(t => (
-                          <button key={t.id} onClick={()=>setPreviewFormat(t.id)} style={{padding:'5px 12px',borderRadius:6,border:'none',fontSize:11,fontWeight:600,cursor:'pointer',background:previewFormat===t.id?'#2a2a38':'transparent',color:previewFormat===t.id?'#c0bcff':'#5a5a78',transition:'all .15s'}}>
+                          <button key={t.id} onClick={()=>setPreviewFormat(t.id)} style={{padding:'5px 12px',borderRadius:6,border:'none',fontSize:11,fontWeight:600,cursor:'pointer',background:previewFormat===t.id?'#1e1e30':'transparent',color:previewFormat===t.id?'#c0bcff':'#4d4d6e',transition:'all .15s'}}>
                             {t.label}
                           </button>
                         ))}
@@ -1486,18 +1486,18 @@ export default function App() {
           {/* ── REGOLE ────────────────────────────────────────────────────── */}
           {page==='regole' && (
             <div>
-              <div style={{padding:'12px 16px',background:'rgba(108,99,255,.1)',border:'1px solid rgba(108,99,255,.3)',borderRadius:8,color:'#8b85ff',fontSize:13,marginBottom:16}}>ℹ Le regole attive vengono eseguite ogni ora dal backend Railway — anche quando questa pagina è chiusa.</div>
+              <div style={{padding:'12px 16px',background:'rgba(0,200,255,.1)',border:'1px solid rgba(0,200,255,.3)',borderRadius:8,color:'#33d4ff',fontSize:13,marginBottom:16}}>ℹ Le regole attive vengono eseguite ogni ora dal backend Railway — anche quando questa pagina è chiusa.</div>
               <div style={{display:'flex',justifyContent:'flex-end',marginBottom:16}}>
                 <button onClick={()=>setModalRule(true)} style={btnPrimary}>+ Aggiungi Regola</button>
               </div>
               {rules.map(r => (
-                <div key={r.id} style={{display:'flex',alignItems:'center',gap:12,background:'#1a1a24',border:'1px solid #2a2a38',borderRadius:8,padding:'14px 16px',marginBottom:8}}>
+                <div key={r.id} style={{display:'flex',alignItems:'center',gap:12,background:'#10101e',border:'1px solid #1e1e30',borderRadius:8,padding:'14px 16px',marginBottom:8}}>
                   <div style={{width:32,height:32,borderRadius:8,background:r.color,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,flexShrink:0}}>{r.icon}</div>
                   <div style={{flex:1}}>
                     <div style={{fontSize:13,fontWeight:500}}>{r.name}</div>
-                    <div style={{fontSize:11,color:'#5a5a78',marginTop:2}}>{r.desc}</div>
+                    <div style={{fontSize:11,color:'#4d4d6e',marginTop:2}}>{r.desc}</div>
                   </div>
-                  <div onClick={() => toggleRule(r.id)} style={{width:36,height:20,background:r.on?'#6c63ff':'#2a2a38',borderRadius:10,position:'relative',cursor:'pointer',transition:'background .2s',flexShrink:0}}>
+                  <div onClick={() => toggleRule(r.id)} style={{width:36,height:20,background:r.on?'#00c8ff':'#1e1e30',borderRadius:10,position:'relative',cursor:'pointer',transition:'background .2s',flexShrink:0}}>
                     <div style={{position:'absolute',width:14,height:14,borderRadius:'50%',background:'white',top:3,left:r.on?19:3,transition:'left .2s'}}></div>
                   </div>
                   <button onClick={() => deleteRule(r.id)} style={{...btnDanger,padding:'4px 8px',fontSize:11,flexShrink:0}}>✕</button>
@@ -1515,9 +1515,9 @@ export default function App() {
                   {t:'Report Mensile',     d:'Ultimi 30 giorni, analisi completa',     type:'mensile'},
                   {t:'Report per Cliente', d:'Tutti gli account, dati aggregati',      type:'per_cliente'},
                 ].map(r=>(
-                  <div key={r.t} style={{background:'#111118',border:'1px solid #2a2a38',borderRadius:12,padding:16}}>
+                  <div key={r.t} style={{background:'#09091a',border:'1px solid #1e1e30',borderRadius:12,padding:16}}>
                     <div style={{fontSize:14,fontWeight:600,marginBottom:6}}>{r.t}</div>
-                    <div style={{fontSize:12,color:'#5a5a78',marginBottom:12}}>{r.d}</div>
+                    <div style={{fontSize:12,color:'#4d4d6e',marginBottom:12}}>{r.d}</div>
                     <div style={{display:'flex',gap:6}}>
                       <button onClick={() => generateReport(r.type)} disabled={!!reportLoading} style={{...btnSecondary,flex:1,padding:'7px',fontSize:11,opacity:reportLoading===r.type?.6:1}}>
                         {reportLoading===r.type ? '⏳...' : '⬇ CSV'}
@@ -1529,11 +1529,11 @@ export default function App() {
                   </div>
                 ))}
               </div>
-              <div style={{background:'#111118',border:'1px solid #2a2a38',borderRadius:12,padding:20}}>
+              <div style={{background:'#09091a',border:'1px solid #1e1e30',borderRadius:12,padding:20}}>
                 <div style={{fontSize:14,fontWeight:600,marginBottom:12}}>Metriche incluse nel report</div>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
                   {['Spesa','ROAS','CPC','CTR','CPM','CPA','Impression','Reach','Click','Conversioni','Frequenza','Qualità'].map(m=>(
-                    <div key={m} style={{fontSize:12,padding:8,background:'#1a1a24',borderRadius:8,textAlign:'center',color:'#9090b0'}}>{m}</div>
+                    <div key={m} style={{fontSize:12,padding:8,background:'#10101e',borderRadius:8,textAlign:'center',color:'#8080a8'}}>{m}</div>
                   ))}
                 </div>
               </div>
@@ -1543,34 +1543,34 @@ export default function App() {
           {/* ── IMPOSTAZIONI ──────────────────────────────────────────────── */}
           {page==='impostazioni' && (
             <div>
-              <div style={{background:'#111118',border:'1px solid #2a2a38',borderRadius:12,padding:20,marginBottom:16}}>
+              <div style={{background:'#09091a',border:'1px solid #1e1e30',borderRadius:12,padding:20,marginBottom:16}}>
                 <div style={{fontSize:14,fontWeight:600,marginBottom:4}}>Informazioni Agenzia</div>
-                <div style={{fontSize:12,color:'#5a5a78',marginBottom:14}}>Salvate localmente nel tuo browser</div>
+                <div style={{fontSize:12,color:'#4d4d6e',marginBottom:14}}>Salvate localmente nel tuo browser</div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}}>
-                  <div><label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Nome Agenzia</label><input value={settForm.agencyName} onChange={e=>setSettForm({...settForm,agencyName:e.target.value})} placeholder="Digital Agency SRL" style={inputStyle} /></div>
-                  <div><label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Email</label><input value={settForm.email} onChange={e=>setSettForm({...settForm,email:e.target.value})} placeholder="info@agenzia.it" style={inputStyle} /></div>
+                  <div><label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>Nome Agenzia</label><input value={settForm.agencyName} onChange={e=>setSettForm({...settForm,agencyName:e.target.value})} placeholder="Digital Agency SRL" style={inputStyle} /></div>
+                  <div><label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>Email</label><input value={settForm.email} onChange={e=>setSettForm({...settForm,email:e.target.value})} placeholder="info@agenzia.it" style={inputStyle} /></div>
                 </div>
                 <button onClick={saveSettingsForm} style={btnPrimary}>Salva</button>
               </div>
 
-              <div style={{background:'#111118',border:'1px solid #2a2a38',borderRadius:12,padding:20,marginBottom:16}}>
+              <div style={{background:'#09091a',border:'1px solid #1e1e30',borderRadius:12,padding:20,marginBottom:16}}>
                 <div style={{fontSize:14,fontWeight:600,marginBottom:4}}>Connessione Meta API</div>
-                <div style={{fontSize:12,color:'#5a5a78',marginBottom:16}}>Ogni utente inserisce le proprie credenziali — i dati restano nel tuo browser</div>
+                <div style={{fontSize:12,color:'#4d4d6e',marginBottom:16}}>Ogni utente inserisce le proprie credenziali — i dati restano nel tuo browser</div>
 
-                <div style={{background:'#0d0d14',border:'1px solid #2a2a48',borderRadius:10,padding:16,marginBottom:20}}>
-                  <div style={{fontSize:12,fontWeight:600,color:'#8b85ff',marginBottom:14,letterSpacing:.3}}>Come configurare AdFlow — 3 passi</div>
+                <div style={{background:'#080712',border:'1px solid #1e1e30',borderRadius:10,padding:16,marginBottom:20}}>
+                  <div style={{fontSize:12,fontWeight:600,color:'#33d4ff',marginBottom:14,letterSpacing:.3}}>Come configurare AdFlow — 3 passi</div>
                   <div style={{display:'flex',flexDirection:'column',gap:12}}>
                     {[
-                      { n:1, title:'Crea l\'app Meta', body: <>Vai su <a href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer" style={{color:'#8b85ff',textDecoration:'none'}}>developers.facebook.com/apps</a> → clicca <strong style={{color:'#9090b0'}}>Crea app</strong> → scegli tipo <strong style={{color:'#9090b0'}}>Business</strong> → copia l'<strong style={{color:'#9090b0'}}>App ID</strong> dalla dashboard.</> },
-                      { n:2, title:'Crea l\'utente di sistema e genera il token', body: <>Vai su <a href="https://business.facebook.com/settings" target="_blank" rel="noreferrer" style={{color:'#8b85ff',textDecoration:'none'}}>business.facebook.com/settings</a> → <strong style={{color:'#9090b0'}}>Utenti → Utenti di sistema → Aggiungi</strong> con ruolo Admin → assegna gli ad account → <strong style={{color:'#9090b0'}}>Genera token</strong> con permessi <strong style={{color:'#9090b0'}}>ads_management</strong> e <strong style={{color:'#9090b0'}}>ads_read</strong>.</> },
-                      { n:3, title:'Trova il Business Manager ID', body: <>Sempre su <a href="https://business.facebook.com/settings" target="_blank" rel="noreferrer" style={{color:'#8b85ff',textDecoration:'none'}}>business.facebook.com/settings</a> → <strong style={{color:'#9090b0'}}>Informazioni business</strong>. Il numero ID è in cima alla pagina.</> },
+                      { n:1, title:'Crea l\'app Meta', body: <>Vai su <a href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer" style={{color:'#33d4ff',textDecoration:'none'}}>developers.facebook.com/apps</a> → clicca <strong style={{color:'#8080a8'}}>Crea app</strong> → scegli tipo <strong style={{color:'#8080a8'}}>Business</strong> → copia l'<strong style={{color:'#8080a8'}}>App ID</strong> dalla dashboard.</> },
+                      { n:2, title:'Crea l\'utente di sistema e genera il token', body: <>Vai su <a href="https://business.facebook.com/settings" target="_blank" rel="noreferrer" style={{color:'#33d4ff',textDecoration:'none'}}>business.facebook.com/settings</a> → <strong style={{color:'#8080a8'}}>Utenti → Utenti di sistema → Aggiungi</strong> con ruolo Admin → assegna gli ad account → <strong style={{color:'#8080a8'}}>Genera token</strong> con permessi <strong style={{color:'#8080a8'}}>ads_management</strong> e <strong style={{color:'#8080a8'}}>ads_read</strong>.</> },
+                      { n:3, title:'Trova il Business Manager ID', body: <>Sempre su <a href="https://business.facebook.com/settings" target="_blank" rel="noreferrer" style={{color:'#33d4ff',textDecoration:'none'}}>business.facebook.com/settings</a> → <strong style={{color:'#8080a8'}}>Informazioni business</strong>. Il numero ID è in cima alla pagina.</> },
                     ].map((s, i, arr) => (
                       <div key={s.n}>
                         <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
-                          <div style={{width:24,height:24,borderRadius:'50%',background:'rgba(108,99,255,.25)',color:'#8b85ff',fontSize:11,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}}>{s.n}</div>
+                          <div style={{width:24,height:24,borderRadius:'50%',background:'rgba(0,200,255,.25)',color:'#33d4ff',fontSize:11,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}}>{s.n}</div>
                           <div>
-                            <div style={{fontSize:12,fontWeight:600,color:'#e0e0f0',marginBottom:3}}>{s.title}</div>
-                            <div style={{fontSize:11,color:'#5a5a78',lineHeight:1.6}}>{s.body}</div>
+                            <div style={{fontSize:12,fontWeight:600,color:'#e4e6f4',marginBottom:3}}>{s.title}</div>
+                            <div style={{fontSize:11,color:'#4d4d6e',lineHeight:1.6}}>{s.body}</div>
                           </div>
                         </div>
                         {i < arr.length - 1 && <div style={{borderTop:'1px solid #1e1e2e',marginTop:12}}></div>}
@@ -1580,17 +1580,17 @@ export default function App() {
                 </div>
 
                 <div style={{marginBottom:14}}>
-                  <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>App ID Meta</label>
+                  <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>App ID Meta</label>
                   <input type="text" value={settForm.appId} onChange={e=>setSettForm({...settForm,appId:e.target.value})} placeholder="Es. 1234567890123456" style={monoInputStyle} />
-                  <div style={helpText}>L'ID della tua app Meta (step 1). Lo trovi nella dashboard di <a href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer" style={{color:'#6c63ff',textDecoration:'none'}}>developers.facebook.com</a>.</div>
+                  <div style={helpText}>L'ID della tua app Meta (step 1). Lo trovi nella dashboard di <a href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer" style={{color:'#00c8ff',textDecoration:'none'}}>developers.facebook.com</a>.</div>
                 </div>
                 <div style={{marginBottom:14}}>
-                  <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>System User Token</label>
+                  <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>System User Token</label>
                   <input type={!tokenVisible?'password':'text'} value={settForm.token} onChange={e=>setSettForm({...settForm,token:e.target.value})} placeholder="Token generato nello step 2…" style={monoInputStyle} />
                   <div style={helpText}>Il token che autorizza AdFlow a gestire le campagne (step 2). Copialo subito — non viene mostrato di nuovo.</div>
                 </div>
                 <div style={{marginBottom:16}}>
-                  <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Business Manager ID</label>
+                  <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>Business Manager ID</label>
                   <input type="text" value={settForm.bmId} onChange={e=>setSettForm({...settForm,bmId:e.target.value})} placeholder="Es. 123456789012345" style={monoInputStyle} />
                   <div style={helpText}>Il numero ID del tuo Business Manager (step 3). Solo cifre, tipo <em>123456789012345</em>.</div>
                 </div>
@@ -1599,7 +1599,7 @@ export default function App() {
                   <button onClick={saveSettingsForm} style={btnPrimary}>Salva Credenziali</button>
                   <button onClick={()=>setTokenVisible(!tokenVisible)} style={btnSecondary}>{tokenVisible?'Nascondi Token':'Mostra Token'}</button>
                   <button onClick={testConnection} style={btnSecondary}>Testa Connessione</button>
-                  {connStatus && <span style={{fontSize:12,color:connStatus.includes('✅')?'#22c55e':connStatus.includes('❌')?'#ef4444':'#9090b0'}}>{connStatus}</span>}
+                  {connStatus && <span style={{fontSize:12,color:connStatus.includes('✅')?'#22c55e':connStatus.includes('❌')?'#ef4444':'#8080a8'}}>{connStatus}</span>}
                 </div>
               </div>
             </div>
@@ -1611,33 +1611,33 @@ export default function App() {
       {/* ── MODAL CLIENTE (aggiungi / modifica) ──────────────────────────── */}
       {(modalClient || editingClient) && (
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.7)',zIndex:100,display:'flex',alignItems:'center',justifyContent:'center'}}>
-          <div style={{background:'#111118',border:'1px solid #3a3a4e',borderRadius:16,padding:24,width:520,maxWidth:'95vw',maxHeight:'85vh',overflowY:'auto'}}>
+          <div style={{background:'#09091a',border:'1px solid #3a3a4e',borderRadius:16,padding:24,width:520,maxWidth:'95vw',maxHeight:'85vh',overflowY:'auto'}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
               <div style={{fontFamily:'Syne,sans-serif',fontSize:16,fontWeight:700}}>{editingClient ? 'Modifica Cliente' : 'Aggiungi Cliente'}</div>
-              <button onClick={() => { setModalClient(false); setEditingClient(null); setClientForm({ name:'', adAccount:'', pageId:'', sector:'E-commerce', notes:'' }) }} style={{background:'none',border:'none',color:'#5a5a78',cursor:'pointer',fontSize:18}}>✕</button>
+              <button onClick={() => { setModalClient(false); setEditingClient(null); setClientForm({ name:'', adAccount:'', pageId:'', sector:'E-commerce', notes:'' }) }} style={{background:'none',border:'none',color:'#4d4d6e',cursor:'pointer',fontSize:18}}>✕</button>
             </div>
             <div style={{marginBottom:14}}>
-              <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Nome Cliente / Azienda</label>
+              <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>Nome Cliente / Azienda</label>
               <input value={clientForm.name} onChange={e=>setClientForm({...clientForm,name:e.target.value})} placeholder="Es. Rossini Srl" style={inputStyle} />
             </div>
             <div style={{marginBottom:14}}>
-              <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Ad Account ID</label>
+              <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>Ad Account ID</label>
               <input value={clientForm.adAccount} onChange={e=>setClientForm({...clientForm,adAccount:e.target.value})} placeholder="act_123456789" style={monoInputStyle} />
-              <div style={helpText}>Formato <strong style={{color:'#9090b0'}}>act_</strong> + numero. Trovalo in Business Manager → Account pubblicitari.</div>
+              <div style={helpText}>Formato <strong style={{color:'#8080a8'}}>act_</strong> + numero. Trovalo in Business Manager → Account pubblicitari.</div>
             </div>
             <div style={{marginBottom:14}}>
-              <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Pagina Facebook ID</label>
+              <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>Pagina Facebook ID</label>
               <input value={clientForm.pageId} onChange={e=>setClientForm({...clientForm,pageId:e.target.value})} placeholder="123456789 (opzionale — caricato automaticamente)" style={monoInputStyle} />
               <div style={helpText}>AdFlow carica automaticamente le pagine disponibili dall'Ad Account nel wizard di creazione campagna. Inserisci qui l'ID solo come fallback manuale se il caricamento automatico non funziona. Trovalo nell'URL della pagina Facebook o in Business Manager.</div>
             </div>
             <div style={{marginBottom:14}}>
-              <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Settore</label>
+              <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>Settore</label>
               <select value={clientForm.sector} onChange={e=>setClientForm({...clientForm,sector:e.target.value})} style={inputStyle}>
                 {['E-commerce','Ristorazione','Immobiliare','Salute & Benessere','Moda & Lifestyle','B2B / Servizi','Turismo','Altro'].map(s=><option key={s}>{s}</option>)}
               </select>
             </div>
             <div style={{marginBottom:20}}>
-              <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>Note</label>
+              <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>Note</label>
               <textarea value={clientForm.notes} onChange={e=>setClientForm({...clientForm,notes:e.target.value})} style={{...inputStyle,minHeight:70,resize:'vertical'}} />
             </div>
             <div style={{display:'flex',justifyContent:'flex-end',gap:8}}>
@@ -1651,10 +1651,10 @@ export default function App() {
       {/* ── MODAL REGOLA ─────────────────────────────────────────────────── */}
       {modalRule && (
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.7)',zIndex:100,display:'flex',alignItems:'center',justifyContent:'center'}}>
-          <div style={{background:'#111118',border:'1px solid #3a3a4e',borderRadius:16,padding:24,width:480,maxWidth:'95vw'}}>
+          <div style={{background:'#09091a',border:'1px solid #3a3a4e',borderRadius:16,padding:24,width:480,maxWidth:'95vw'}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
               <div style={{fontFamily:'Syne,sans-serif',fontSize:16,fontWeight:700}}>Nuova Regola Automatica</div>
-              <button onClick={()=>setModalRule(false)} style={{background:'none',border:'none',color:'#5a5a78',cursor:'pointer',fontSize:18}}>✕</button>
+              <button onClick={()=>setModalRule(false)} style={{background:'none',border:'none',color:'#4d4d6e',cursor:'pointer',fontSize:18}}>✕</button>
             </div>
             {[
               {label:'Nome regola',    key:'name',      tag:'input',  placeholder:'Es. Pausa se CPA alto'},
@@ -1663,7 +1663,7 @@ export default function App() {
               {label:'Azione',         key:'action',    tag:'select', opts:[{v:'pause',l:'Metti in pausa'},{v:'budget_increase',l:'Aumenta budget 20%'},{v:'budget_decrease',l:'Riduci budget 20%'},{v:'notify',l:'Solo notifica'}]},
             ].map(f=>(
               <div key={f.key} style={{marginBottom:14}}>
-                <label style={{fontSize:12,color:'#9090b0',display:'block',marginBottom:6}}>{f.label}</label>
+                <label style={{fontSize:12,color:'#8080a8',display:'block',marginBottom:6}}>{f.label}</label>
                 {f.tag==='select'
                   ? <select value={ruleForm[f.key]} onChange={e=>setRuleForm({...ruleForm,[f.key]:e.target.value})} style={inputStyle}>{f.opts.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}</select>
                   : <input type={f.type||'text'} value={ruleForm[f.key]} onChange={e=>setRuleForm({...ruleForm,[f.key]:e.target.value})} placeholder={f.placeholder} style={inputStyle} />
@@ -1681,25 +1681,25 @@ export default function App() {
       {/* ── MODAL BREAKDOWN CAMPAGNA ─────────────────────────────────────── */}
       {selectedCampaign && (
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.75)',zIndex:100,display:'flex',alignItems:'center',justifyContent:'center'}} onClick={()=>setSelectedCampaign(null)}>
-          <div style={{background:'#111118',border:'1px solid #3a3a4e',borderRadius:16,padding:24,width:580,maxWidth:'95vw',maxHeight:'85vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
+          <div style={{background:'#09091a',border:'1px solid #3a3a4e',borderRadius:16,padding:24,width:580,maxWidth:'95vw',maxHeight:'85vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
               <div>
                 <div style={{fontFamily:'Syne,sans-serif',fontSize:15,fontWeight:700}}>{selectedCampaign.nome}</div>
-                <div style={{fontSize:11,color:'#5a5a78',marginTop:2}}>{selectedCampaign.clienteName} · {selectedCampaign.obiettivo?.replace('OUTCOME_','')}</div>
+                <div style={{fontSize:11,color:'#4d4d6e',marginTop:2}}>{selectedCampaign.clienteName} · {selectedCampaign.obiettivo?.replace('OUTCOME_','')}</div>
               </div>
-              <button onClick={()=>setSelectedCampaign(null)} style={{background:'none',border:'none',color:'#5a5a78',cursor:'pointer',fontSize:18}}>✕</button>
+              <button onClick={()=>setSelectedCampaign(null)} style={{background:'none',border:'none',color:'#4d4d6e',cursor:'pointer',fontSize:18}}>✕</button>
             </div>
 
             {!selectedCampaign.fromMeta ? (
-              <div style={{color:'#5a5a78',fontSize:13}}>Breakdown disponibile solo per campagne sincronizzate da Meta.</div>
+              <div style={{color:'#4d4d6e',fontSize:13}}>Breakdown disponibile solo per campagne sincronizzate da Meta.</div>
             ) : breakdownLoading ? (
-              <div style={{color:'#5a5a78',fontSize:13,padding:'20px 0',textAlign:'center'}}>⏳ Caricamento breakdown...</div>
+              <div style={{color:'#4d4d6e',fontSize:13,padding:'20px 0',textAlign:'center'}}>⏳ Caricamento breakdown...</div>
             ) : (
               <>
                 {/* Tabs */}
-                <div style={{display:'flex',gap:4,marginBottom:16,background:'#0a0a0f',padding:3,borderRadius:8,width:'fit-content'}}>
+                <div style={{display:'flex',gap:4,marginBottom:16,background:'#06060b',padding:3,borderRadius:8,width:'fit-content'}}>
                   {[{id:'age',l:'Età'},{id:'gender',l:'Sesso'},{id:'placement',l:'Placement'}].map(t=>(
-                    <button key={t.id} onClick={()=>setBreakdownTab(t.id)} style={{padding:'5px 14px',borderRadius:6,border:'none',fontSize:11,fontWeight:600,cursor:'pointer',background:breakdownTab===t.id?'#2a2a38':'transparent',color:breakdownTab===t.id?'#c0bcff':'#5a5a78'}}>
+                    <button key={t.id} onClick={()=>setBreakdownTab(t.id)} style={{padding:'5px 14px',borderRadius:6,border:'none',fontSize:11,fontWeight:600,cursor:'pointer',background:breakdownTab===t.id?'#1e1e30':'transparent',color:breakdownTab===t.id?'#c0bcff':'#4d4d6e'}}>
                       {t.l}
                     </button>
                   ))}
@@ -1707,18 +1707,18 @@ export default function App() {
                 {/* Table */}
                 {(() => {
                   const rows = breakdownData[breakdownTab] || []
-                  if (!rows.length) return <div style={{color:'#5a5a78',fontSize:12}}>Nessun dato disponibile.</div>
+                  if (!rows.length) return <div style={{color:'#4d4d6e',fontSize:12}}>Nessun dato disponibile.</div>
                   const keyLabel = breakdownTab === 'age' ? 'age' : breakdownTab === 'gender' ? 'gender' : 'publisher_platform'
                   return (
                     <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
-                      <thead><tr>{[breakdownTab==='age'?'Fascia età':breakdownTab==='gender'?'Sesso':'Placement','Spesa','Impression','Click','CTR'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',color:'#5a5a78',fontSize:11,borderBottom:'1px solid #2a2a38'}}>{h}</th>)}</tr></thead>
+                      <thead><tr>{[breakdownTab==='age'?'Fascia età':breakdownTab==='gender'?'Sesso':'Placement','Spesa','Impression','Click','CTR'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',color:'#4d4d6e',fontSize:11,borderBottom:'1px solid #1e1e30'}}>{h}</th>)}</tr></thead>
                       <tbody>{rows.map((r,i)=>(
-                        <tr key={i} style={{borderBottom:'1px solid #1a1a24'}}>
+                        <tr key={i} style={{borderBottom:'1px solid #10101e'}}>
                           <td style={{padding:'7px 8px',fontWeight:500}}>{r[keyLabel] || '—'}</td>
-                          <td style={{padding:'7px 8px',color:'#9090b0'}}>€{parseFloat(r.spend||0).toFixed(2)}</td>
-                          <td style={{padding:'7px 8px',color:'#9090b0'}}>{r.impressions||0}</td>
-                          <td style={{padding:'7px 8px',color:'#9090b0'}}>{r.clicks||0}</td>
-                          <td style={{padding:'7px 8px',color:'#9090b0'}}>{r.ctr?parseFloat(r.ctr).toFixed(2)+'%':'—'}</td>
+                          <td style={{padding:'7px 8px',color:'#8080a8'}}>€{parseFloat(r.spend||0).toFixed(2)}</td>
+                          <td style={{padding:'7px 8px',color:'#8080a8'}}>{r.impressions||0}</td>
+                          <td style={{padding:'7px 8px',color:'#8080a8'}}>{r.clicks||0}</td>
+                          <td style={{padding:'7px 8px',color:'#8080a8'}}>{r.ctr?parseFloat(r.ctr).toFixed(2)+'%':'—'}</td>
                         </tr>
                       ))}</tbody>
                     </table>
@@ -1732,7 +1732,7 @@ export default function App() {
 
       {/* ── NOTIFICA ─────────────────────────────────────────────────────── */}
       {showNotif && (
-        <div style={{position:'fixed',bottom:24,right:24,background:'#1a1a24',border:'1px solid #3a3a4e',borderLeft:'3px solid #6c63ff',borderRadius:12,padding:'14px 18px',fontSize:13,zIndex:200,maxWidth:320}}>
+        <div style={{position:'fixed',bottom:24,right:24,background:'#10101e',border:'1px solid #3a3a4e',borderLeft:'3px solid #00c8ff',borderRadius:12,padding:'14px 18px',fontSize:13,zIndex:200,maxWidth:320}}>
           {notif}
         </div>
       )}
