@@ -154,14 +154,22 @@ export default function App() {
   useEffect(() => {
     if (page !== 'crea') return
     if (!campForm.nome && step === 1) return
+    const draftWithImages = {
+      form: campForm,
+      cards: carouselCards.map(({ id, title, url, imageBase64, imagePreview }) => ({ id, title, url, imageBase64, imagePreview })),
+      multiImages,
+      step,
+    }
+    const draftWithoutImages = {
+      form: campForm,
+      cards: carouselCards.map(({ id, title, url }) => ({ id, title, url })),
+      step,
+    }
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({
-        form: campForm,
-        cards: carouselCards.map(({ id, title, url, imageBase64, imagePreview }) => ({ id, title, url, imageBase64, imagePreview })),
-        multiImages,
-        step,
-      }))
-    } catch {}
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draftWithImages))
+    } catch {
+      try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draftWithoutImages)) } catch {}
+    }
   }, [campForm, carouselCards, multiImages, step, page])
 
   useEffect(() => {
