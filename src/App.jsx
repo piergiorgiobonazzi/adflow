@@ -157,11 +157,12 @@ export default function App() {
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify({
         form: campForm,
-        cards: carouselCards.map(({ id, title, url }) => ({ id, title, url })),
+        cards: carouselCards.map(({ id, title, url, imageBase64, imagePreview }) => ({ id, title, url, imageBase64, imagePreview })),
+        multiImages,
         step,
       }))
     } catch {}
-  }, [campForm, carouselCards, step, page])
+  }, [campForm, carouselCards, multiImages, step, page])
 
   useEffect(() => {
     if (page !== 'crea') return
@@ -232,7 +233,8 @@ export default function App() {
     const d = getDraft()
     if (!d) return
     if (d.form) setCampForm(d.form)
-    if (d.cards) setCarouselCards(d.cards.map(c => ({ ...c, imageBase64: null, imagePreview: null })))
+    if (d.cards) setCarouselCards(d.cards.map(c => ({ ...c })))
+    if (d.multiImages) setMultiImages(d.multiImages)
     if (d.step) setStep(d.step)
     setShowDraftBanner(false)
     notify('Bozza ripristinata')
